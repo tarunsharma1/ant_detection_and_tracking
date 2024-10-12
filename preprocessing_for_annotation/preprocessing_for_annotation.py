@@ -52,7 +52,7 @@ def calculate_avg_frame(video):
 		return average_frame
 
 
-def blob_detection(new_frame, frame_number, params=None):
+def blob_detection(new_frame, frame_number=0, params=None):
 		frame = new_frame.copy()
 		
 		list_of_points = []

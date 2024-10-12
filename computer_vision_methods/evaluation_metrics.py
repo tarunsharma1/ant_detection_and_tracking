@@ -1,8 +1,16 @@
+import sys
+sys.path.append('../')
+sys.path.append('../utils')
+sys.path.append('../preprocessing_for_annotation')
+
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
+import read_xml_files_from_cvat, converting_points_to_boxes
+import preprocessing_for_annotation
 
+import cv2
 
 def compute_iou(box_1, box_2):
     '''
@@ -61,7 +69,7 @@ def compute_counts(preds, gts, iou_thr=0.5, conf_thr=0.5):
         
         gt = []
         for i in range(len(gt_new)):
-        	gt.append(gt_new[i]['bbox'])
+        	gt.append(gt_new[i])
 
 
 
@@ -75,10 +83,10 @@ def compute_counts(preds, gts, iou_thr=0.5, conf_thr=0.5):
                 if pred[j] == -1:
                     continue
 
-                # take only those predictions which are above the confidence threshold
-                if pred[j][-1] < conf_thr:
-                	pred[j] = -1
-                	continue
+                ### take only those predictions which are above the confidence threshold
+                # if pred[j][-1] < conf_thr:
+                # 	pred[j] = -1
+                # 	continue
                 
                 iou = compute_iou(pred[j][:4], gt[i])
                 
@@ -165,6 +173,15 @@ def plot_pr_curve(preds_val, gts_val):
 
 
 
+def plot_boxes_on_image(image, list_of_boxes, label='image'):
+    frame = cv2.imread(image)
+    for box in list_of_boxes:
+        frame = cv2.rectangle(frame,(box[0],box[1]),(box[2],box[3]),(0,255,0),1)
+    #cv2.imshow('w', frame)
+    #cv2.waitKey(1000)
+    cv2.imwrite('/home/tarun/Downloads/'+label+'.jpg', frame)
+
+
 '''
 
 right now code is setup to take in two dictionaries, one for predictions one for gt, of the format 
@@ -173,24 +190,60 @@ where box1 is of format [x1,y1,x2,y2,confidence]
 
 
 In our case, GT will always come from point based annotations in CVAT, which is giving us XML files per video (30 frames per video).
-We need a function to first read the XML files per video, and convert it to a format of 
+We need a function to first read the XML files per video (downloaded from cvat), and convert it to a format of 
 {'video1_frame1': [boxes], 'video1_frame2': [boxes], ... , 'video2_frame1': [boxes], ...}
 
 For the predictions via blob detection, we can call the function counting_using_blob_detection.count_ants_using_blob_detection(video_id, subset_of_frames)
 which will return a list of coords per frame (list of lists) and also a list of counts per frame. Both these lists are of size subset_of_frames.
 We will then reformat this into the same format as for the GT above and then we should be good to go.
- 
 
 '''
 
 
 
-with open('/home/tarun/caltech-ee148/project/output_files/preds_test_manually_annotated.json') as f:
-    preds_val = json.load(f)
-    
-with open('/home/tarun/caltech-ee148/project/annotations/manually_annotated_test.json') as f:
-    gts_val = json.load(f)
+def read_and_convert_ground_truth(annotation_xml_file, folder_where_annotated_video_came_from, box_size):
+    gts_points_dict = read_xml_files_from_cvat.xml_to_dict_cvat_for_images(annotation_xml_file, folder_where_annotated_video_came_from)
+    gts_boxes_dict = {}
+    for f in gts_points_dict.keys():
+        gts_boxes_dict[f] = []
+        gts_boxes_dict[f] = converting_points_to_boxes.convert_points_to_boxes(gts_points_dict[f], box_size, 1920, 1080) 
+
+    return gts_boxes_dict
+
+
+def get_blob_detection_preds(gts_boxes_dict):
+    preds_boxes_dict = {}
+    for image in list(gts_boxes_dict.keys()):
+        preds_boxes_dict[image] = []
+        frame = cv2.imread(image)
+        list_of_points = preprocessing_for_annotation.blob_detection(frame)
+        preds_boxes_dict[image] = converting_points_to_boxes.convert_points_to_boxes(list_of_points, 20, 1920,1080)
+
+    return preds_boxes_dict
+
+
+### read and convert ground truth points from cvat into boxes #####
+gts_boxes_dict = read_and_convert_ground_truth('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_03_01_01/', 20)
+
+#### visualize first image to see if boxes are correct and of appropriate size
+plot_boxes_on_image(list(gts_boxes_dict.keys())[0], gts_boxes_dict[list(gts_boxes_dict.keys())[0]] , label='2024-08-22_03_01_01_ground_truth')
+
+
+### get predictions for the images in the ground truth dict #####
+preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
+
+plot_boxes_on_image(list(preds_boxes_dict.keys())[0], preds_boxes_dict[list(preds_boxes_dict.keys())[0]], label='2024-08-22_03_01_01_prediction')
 
 
 
-plot_pr_curve(preds_val, gts_val)
+tp, fp, fn = compute_counts(preds_boxes_dict, gts_boxes_dict)
+f1_score = (2*tp)/(2*tp + fp + fn)
+precision = tp/(tp + fp)
+recall = tp/(tp + fn)
+
+print ('2024-08-22_03_01_01')
+print ('f1 score is :', f1_score)
+print (precision, recall)
+
+
+##plot_pr_curve(preds_boxes_dict, gts_boxes_dict)
