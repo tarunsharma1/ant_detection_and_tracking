@@ -19,16 +19,7 @@ Instead of running blob detection on every single frame, we are going to run it 
 
 connection = database_helper.create_connection("localhost", "root", "master", "ant_colony_db")
 
-query = f"""
-	SELECT video_id from Videos;
-	"""
 
-videos = []
-videos_db = database_helper.execute_query(connection, query)
-for vid in videos_db:
-	videos.append(vid[0])
-
-number_of_frames_to_calculate_average_count = 50
 
 ### params for opencv blob detection
 params = cv2.SimpleBlobDetector_Params()
@@ -44,8 +35,9 @@ params.filterByInertia = False
 params.minDistBetweenBlobs = 10
 #params.minInertiaRatio = 0.1
 
+def count_ants_using_blob_detection(video, subset_of_frames):
+	## takes in full path of a video as a str and a list of frame numbers to calculate counts on
 
-for video in videos:
 	print ('working on video:', video)
 	average_frame = preprocessing_for_annotation.calculate_avg_frame(video)
 	cap = cv2.VideoCapture(video)
@@ -54,16 +46,17 @@ for video in videos:
 	cap = cv2.VideoCapture(video)
 	total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-	subset_of_frames = list(np.linspace(0,total_frames-1, number_of_frames_to_calculate_average_count, dtype=int))
+	ant_counts = []
 
-	ant_count = []
+	point_coords = []
 
 	frame_number = 0
 	while(1):
 		ret, frame = cap.read()
 		if frame is None:
 			break
-		
+		if frame_number > max(subset_of_frames):
+			break
 		if frame_number in subset_of_frames:
 			gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -75,19 +68,47 @@ for video in videos:
 			new_frame[:,:,1] = cv2.absdiff(gray,average_frame)*3
 
 			list_of_points = preprocessing_for_annotation.blob_detection(new_frame, frame_number, params)
-			ant_count.append(len(list_of_points))
+			ant_counts.append(len(list_of_points))
+			point_coords.append(list_of_points)
 
 		frame_number += 1
+	return point_coords, ant_counts
+		
 
-	#print ('counts are : ', ant_count)
-	average_ant_count = np.mean(np.array(ant_count))
-	ant_count_std_dev = np.std(np.array(ant_count))
-	print ('average ant count is ' + str(average_ant_count) + ' std dev is' + str(ant_count_std_dev))
+
+
+def insert_count_into_db():
 	query = f"""
-	INSERT INTO Counts (video_id, blob_detection_average_count, blob_detection_std_dev)
-	VALUES ('{video}', {average_ant_count}, {ant_count_std_dev});"""
-	database_helper.execute_query(connection, query)
-	connection.commit()
+	SELECT video_id from Videos;
+	"""
+	videos = []
+	videos_db = database_helper.execute_query(connection, query)
+
+	for vid in videos_db:
+		videos.append(vid[0])
+
+	number_of_frames_to_calculate_average_count=50
+	subset_of_frames = list(np.linspace(0,total_frames-1, number_of_frames_to_calculate_average_count, dtype=int))
+
+
+	for video in videos:
+		_, ant_counts = count_ants_using_blob_detection(video)
+
+		#print ('counts are : ', ant_count)
+		average_ant_count = np.mean(np.array(ant_counts))
+		ant_count_std_dev = np.std(np.array(ant_counts))
+		print ('average ant count is ' + str(average_ant_count) + ' std dev is' + str(ant_count_std_dev))
+		query = f"""
+		INSERT INTO Counts (video_id, blob_detection_average_count, blob_detection_std_dev)
+		VALUES ('{video}', {average_ant_count}, {ant_count_std_dev});"""
+		database_helper.execute_query(connection, query)
+		connection.commit()
+
+
+
+if __name__ == '__main__':
+	insert_count_into_db()
+
 
 connection.close()
 
