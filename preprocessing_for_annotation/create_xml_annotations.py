@@ -51,7 +51,9 @@ def create_xml_file_boilerplate(job_id="1264127"):
 	return root
 
 
-def add_points_to_xml_file(root,list_of_points, filename="bloby_annotation.xml"):
+def add_tracks_to_xml_file(root,list_of_points, filename="bloby_annotation.xml"):
+	### this method is for seeding annotations on CVAT by creating track annotations only for the first frame
+
 	## list_of_points is a list of lists [[x1,y1], [x2,y2], [x3,y3]...] containing coords for blobs on the first frame
 
 	for point in list_of_points:		
@@ -66,5 +68,18 @@ def add_points_to_xml_file(root,list_of_points, filename="bloby_annotation.xml")
 	tree = ET.ElementTree(root)
 	tree.write(filename)
 
+
+def add_img_and_points_to_xml_file(root, list_of_points, img_name, width, height, id, xml_filename):
+	### this method is used when we are creating one XML for multiple patches of an image
+	
+	img = ET.SubElement(root, "image", id=str(id), name=img_name, width=str(width), height=str(height))
+	for point in list_of_points:		
+		x,y = point[0], point[1]
+		
+		points = ET.SubElement(img, "points", label="ant", source="manual", occluded="0", points=str(x) + "," + str(y), z_order="0")
+
+	tree = ET.ElementTree(root)
+	tree.write(xml_filename)
+	
 
 

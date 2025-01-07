@@ -6,7 +6,7 @@ where tl and br are top left and bottom right of the box. Boxes are centered on 
 frame width or height.
 
 '''
-def convert_points_to_boxes(list_of_points, box_size, img_w, img_h):
+def convert_points_to_boxes(list_of_points, box_size, img_w=1920, img_h=1080):
 	list_of_boxes = []
 	for point in list_of_points:
 		center_x, center_y = point

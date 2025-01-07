@@ -2,6 +2,15 @@ import cv2
 import argparse
 
 
+'''
+
+Example usage : 
+python convert_video_h264_to_mp4.py -i 2024-08-04_01_01_01/vid.h264 -o 2024-08-04_01_01_01/2024-08-04_01_01_01.mp4 --path /media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-30-2024/ 
+
+
+'''
+
+
 def convert(input_vid, output, path, mask=False):
 
     print('using path ' + path)

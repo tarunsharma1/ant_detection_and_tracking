@@ -21,30 +21,37 @@ connection = database_helper.create_connection("localhost", "root", "master", "a
 
 
 
-### params for opencv blob detection
-params = cv2.SimpleBlobDetector_Params()
-params.filterByColor = True
-params.blobColor = 255
-#params.minThreshold = 30
-#params.maxThreshold = 200
-params.filterByArea = True
-params.minArea = 10
-params.filterByCircularity = False
-params.filterByConvexity = False
-params.filterByInertia = False
-params.minDistBetweenBlobs = 10
-#params.minInertiaRatio = 0.1
 
-def count_ants_using_blob_detection(video, subset_of_frames):
+
+def count_ants_using_blob_detection(video, subset_of_frames=None, params=None):
 	## takes in full path of a video as a str and a list of frame numbers to calculate counts on
+
+	if params is None:
+		### params for opencv blob detection
+		params = cv2.SimpleBlobDetector_Params()
+		params.filterByColor = True
+		params.blobColor = 255
+		#params.minThreshold = 30
+		#params.maxThreshold = 200
+		params.filterByArea = True
+		params.minArea = 10
+		params.filterByCircularity = False
+		params.filterByConvexity = False
+		params.filterByInertia = False
+		params.minDistBetweenBlobs = 10
+		#params.minInertiaRatio = 0.1
 
 	print ('working on video:', video)
 	average_frame = preprocessing_for_annotation.calculate_avg_frame(video)
-	cap = cv2.VideoCapture(video)
+	
 	frame_h,frame_w = average_frame.shape       #### shape is 1080,1920,1
-
+	
 	cap = cv2.VideoCapture(video)
 	total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+	if subset_of_frames is None:
+		### calculate for all the frames
+		subset_of_frames = list(range(total_frames))
 
 	ant_counts = []
 
@@ -88,11 +95,12 @@ def insert_count_into_db():
 		videos.append(vid[0])
 
 	number_of_frames_to_calculate_average_count=50
+	total_frames = 550 ## just to be safe, should be around 600 frames in each video
 	subset_of_frames = list(np.linspace(0,total_frames-1, number_of_frames_to_calculate_average_count, dtype=int))
 
 
 	for video in videos:
-		_, ant_counts = count_ants_using_blob_detection(video)
+		_, ant_counts = count_ants_using_blob_detection(video, subset_of_frames)
 
 		#print ('counts are : ', ant_count)
 		average_ant_count = np.mean(np.array(ant_counts))

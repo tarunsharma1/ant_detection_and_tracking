@@ -2,6 +2,7 @@ import sys
 sys.path.append('../')
 sys.path.append('../utils')
 sys.path.append('../preprocessing_for_annotation')
+sys.path.append('../visualization')
 
 import json
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import numpy as np
 import copy
 import read_xml_files_from_cvat, converting_points_to_boxes
 import preprocessing_for_annotation
+import plots_comparing_predictions_and_gt
 
 import cv2
 
@@ -173,15 +175,6 @@ def plot_pr_curve(preds_val, gts_val):
 
 
 
-def plot_boxes_on_image(image, list_of_boxes, label='image'):
-    frame = cv2.imread(image)
-    for box in list_of_boxes:
-        frame = cv2.rectangle(frame,(box[0],box[1]),(box[2],box[3]),(0,255,0),1)
-    #cv2.imshow('w', frame)
-    #cv2.waitKey(1000)
-    cv2.imwrite('/home/tarun/Downloads/'+label+'.jpg', frame)
-
-
 '''
 
 right now code is setup to take in two dictionaries, one for predictions one for gt, of the format 
@@ -222,28 +215,59 @@ def get_blob_detection_preds(gts_boxes_dict):
     return preds_boxes_dict
 
 
-### read and convert ground truth points from cvat into boxes #####
-gts_boxes_dict = read_and_convert_ground_truth('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_03_01_01/', 20)
+def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box_size, label):
+    ### read and convert ground truth points from cvat into boxes #####
+    gts_boxes_dict = read_and_convert_ground_truth(annotation_xml_file, folder_where_annotated_video_came_from, box_size)
 
-#### visualize first image to see if boxes are correct and of appropriate size
-plot_boxes_on_image(list(gts_boxes_dict.keys())[0], gts_boxes_dict[list(gts_boxes_dict.keys())[0]] , label='2024-08-22_03_01_01_ground_truth')
-
-
-### get predictions for the images in the ground truth dict #####
-preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
-
-plot_boxes_on_image(list(preds_boxes_dict.keys())[0], preds_boxes_dict[list(preds_boxes_dict.keys())[0]], label='2024-08-22_03_01_01_prediction')
+    #### visualize first image to see if boxes are correct and of appropriate size
+    #plots_comparing_predictions_and_gt.plot_boxes_on_image(list(gts_boxes_dict.keys())[0], gts_boxes_dict[list(gts_boxes_dict.keys())[0]] , label='2024-08-22_03_01_01_ground_truth')
 
 
-
-tp, fp, fn = compute_counts(preds_boxes_dict, gts_boxes_dict)
-f1_score = (2*tp)/(2*tp + fp + fn)
-precision = tp/(tp + fp)
-recall = tp/(tp + fn)
-
-print ('2024-08-22_03_01_01')
-print ('f1 score is :', f1_score)
-print (precision, recall)
+    ### get predictions for the images in the ground truth dict #####
+    preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
+    #plots_comparing_predictions_and_gt.plot_boxes_on_image(list(preds_boxes_dict.keys())[0], preds_boxes_dict[list(preds_boxes_dict.keys())[0]], label='2024-08-22_03_01_01_prediction')
 
 
-##plot_pr_curve(preds_boxes_dict, gts_boxes_dict)
+    plots_comparing_predictions_and_gt.plot_ant_counts_gt_vs_preds(gts_boxes_dict, preds_boxes_dict, label)
+
+
+    tp, fp, fn = compute_counts(preds_boxes_dict, gts_boxes_dict)
+    f1_score = (2*tp)/(2*tp + fp + fn)
+    precision = tp/(tp + fp)
+    recall = tp/(tp + fn)
+
+    print ('true positives, false positives, false negs:', tp,fp,fn)
+    print ('f1 score is :', f1_score)
+    print ('precision, recall:',precision, recall)
+
+    return gts_boxes_dict, preds_boxes_dict
+
+
+
+if __name__ == '__main__':
+    gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01')
+    gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-01_20_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/', 20, '2024-08-01_20_01_00')
+    gts_3, preds_3 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
+
+    gts_1.update(gts_2)
+    gts_1.update(gts_3)
+    preds_1.update(preds_2)
+    preds_1.update(preds_3)
+
+    ## make a scatter plot of gt_ant_count vs preds_ant_count every frame
+    gt_count = []
+    pred_count = []
+    for f in list(gts_1.keys()):
+        gt_count.append(len(gts_1[f]))
+        pred_count.append(len(preds_1[f]))
+
+    plt.title('ground truth vs prediction per frame')
+    plt.scatter(gt_count, pred_count, c='black')
+    plt.ylabel('blob detection counts')
+    plt.xlabel('ground truth counts')
+    plt.xlim(0,200)
+    plt.ylim(0,200)
+    plt.plot([0,50,100,150,200], [0,50,100,150,200], color='red')
+    plt.show()
+
+    ##plot_pr_curve(preds_boxes_dict, gts_boxes_dict)

@@ -16,6 +16,7 @@ average ant count per site over multiple days,
 def plot_data_for_a_day_range(start_day, number_of_days=0):
 	hours = df.loc[df.time_stamp.dt.day == start_day.start_time.day]['time_stamp'].dt.hour
 	temperature = df.loc[df.time_stamp.dt.day == start_day.start_time.day]['temperature']
+	lux = df.loc[df.time_stamp.dt.day == start_day.start_time.day]['LUX']
 	ant_counts = df.loc[df.time_stamp.dt.day == start_day.start_time.day]['blob_detection_average_count']
 	ant_std_dev = df.loc[df.time_stamp.dt.day == start_day.start_time.day]['blob_detection_std_dev']
 
@@ -38,6 +39,8 @@ def plot_data_for_a_day_range(start_day, number_of_days=0):
 	for i in range(0, number_of_days):
 		hours = df.loc[df.time_stamp.dt.day == (start_day+i).start_time.day]['time_stamp'].dt.hour
 		temperature = df.loc[df.time_stamp.dt.day == (start_day+i).start_time.day]['temperature']
+		lux = df.loc[df.time_stamp.dt.day == (start_day+i).start_time.day]['LUX']
+		
 		ant_counts = df.loc[df.time_stamp.dt.day == (start_day+i).start_time.day]['blob_detection_average_count']
 
 		axes[0].errorbar(hours, ant_counts, label=str((start_day+i).start_time.month) + '-' +str((start_day+i).start_time.day), color='b', alpha=alpha)
@@ -113,7 +116,7 @@ days_period = pd.Period(df.time_stamp.min(), freq='D')
 #import ipdb; ipdb.set_trace()
 plot_ant_counts_vs_variables_scatter()
 
-plot_data_for_a_day_range(days_period + 1)
+plot_data_for_a_day_range(days_period + 7)
 plot_data_for_a_day_range(days_period, 20)
 
 

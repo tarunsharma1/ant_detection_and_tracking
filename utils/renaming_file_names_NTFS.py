@@ -1,7 +1,7 @@
 import os
 import glob
 
-path = '/home/tarun/Desktop/chaney_ant_data/beer_tree/2024-03-16_to_2024-04-02_17days/'
+path = '/home/tarun/temp/'
 f = glob.glob(path + '/*:*')
 
 for i in range(0, len(f)):

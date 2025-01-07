@@ -12,6 +12,7 @@ import sys
 sys.path.append('../utils')
 import convert_video_h264_to_mp4
 import create_xml_annotations
+from ultralytics import YOLO
 
 
 """
@@ -28,69 +29,81 @@ Note: Once I upload the sequence of frames to a new CVAT task, I will then updat
 """
 
 def calculate_avg_frame(video):
-		cap = cv2.VideoCapture(video)
-		#mask = cv2.imread('/home/tarun/Desktop/antcam/mask_gimp.png')
-		#mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-		average_frame = None
-		num_frames = 0	
-		while True:
-			ret, frame = cap.read()
-			if frame is None:
-				break
-			gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-			## apply mask
-			#gray = cv2.bitwise_and(gray,gray, mask= ~mask)
-			if average_frame is None:
-				average_frame = gray.astype(float)
-			else:
-				average_frame += gray.astype(float)
-			num_frames += 1
+	cap = cv2.VideoCapture(video)
+	#mask = cv2.imread('/home/tarun/Desktop/antcam/mask_gimp.png')
+	#mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+	average_frame = None
+	num_frames = 0	
+	while True:
+		ret, frame = cap.read()
+		if frame is None:
+			break
+		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+		## apply mask
+		#gray = cv2.bitwise_and(gray,gray, mask= ~mask)
+		if average_frame is None:
+			average_frame = gray.astype(float)
+		else:
+			average_frame += gray.astype(float)
+		num_frames += 1
 
-		average_frame = average_frame / num_frames
-		average_frame = average_frame.astype("uint8")
-		cap.release()
-		return average_frame
+	average_frame = average_frame / num_frames
+	average_frame = average_frame.astype("uint8")
+	cap.release()
+	return average_frame
 
 
 def blob_detection(new_frame, frame_number=0, params=None):
-		frame = new_frame.copy()
-		
-		list_of_points = []
+	frame = new_frame.copy()
+	
+	list_of_points = []
 
-		if not params:
-			params = cv2.SimpleBlobDetector_Params()
-			params.filterByColor = True
-			params.blobColor = 255
-			#params.minThreshold = 30
-			#params.maxThreshold = 200
-			params.filterByArea = True
-			params.minArea = 10
-			params.filterByCircularity = False
-			params.filterByConvexity = False
-			params.filterByInertia = False
-			params.minDistBetweenBlobs = 10
-			#params.minInertiaRatio = 0.1
-		detector = cv2.SimpleBlobDetector_create(params)
+	if not params:
+		params = cv2.SimpleBlobDetector_Params()
+		params.filterByColor = True
+		params.blobColor = 255
+		#params.minThreshold = 30
+		#params.maxThreshold = 200
+		params.filterByArea = True
+		params.minArea = 10
+		params.filterByCircularity = False
+		params.filterByConvexity = False
+		params.filterByInertia = False
+		params.minDistBetweenBlobs = 10
+		#params.minInertiaRatio = 0.1
+	detector = cv2.SimpleBlobDetector_create(params)
 
-		# Detect blobs.
-		keypoints = detector.detect(frame)
+	# Detect blobs.
+	keypoints = detector.detect(frame)
 
-		# Draw detected blobs as red circles.
-		for keypoint in keypoints:
-			pt_x, pt_y = keypoint.pt
+	# Draw detected blobs as red circles.
+	for keypoint in keypoints:
+		pt_x, pt_y = keypoint.pt
 
-			list_of_points.append([pt_x, pt_y])
+		list_of_points.append([pt_x, pt_y])
 
-			pt_x, pt_y = int(pt_x), int(pt_y)
-			#frame[pt_y-3:pt_y+3, pt_x-3:pt_x+3] = [0,0,255]
+		pt_x, pt_y = int(pt_x), int(pt_y)
+		#frame[pt_y-3:pt_y+3, pt_x-3:pt_x+3] = [0,0,255]
 
-		#cv2.imwrite('/home/tarun/Pictures/beer-tree/beer-tree-bloby-' + str(frame_number) + '.jpg',frame)
-		 
-		# Show keypoints
-		#cv2.imshow("Keypoints", frame)
-		#cv2.waitKey(30)
+	#cv2.imwrite('/home/tarun/Pictures/beer-tree/beer-tree-bloby-' + str(frame_number) + '.jpg',frame)
+	 
+	# Show keypoints
+	#cv2.imshow("Keypoints", frame)
+	#cv2.waitKey(30)
 
-		return list_of_points
+	return list_of_points
+
+def yolo_trained_model(model, frame):
+	results = model.predict(frame, device='cpu', save=True, imgsz=1920, workers=1, show_labels=False, conf=0.1, line_width=1, iou=0.1, max_det=1000)  # return a list of Results objects
+	boxes = results[0].boxes  # Boxes object for bounding box outputs
+	list_of_boxes = boxes.data.numpy()[:,0:4].tolist() ## list of lists [[x1,y1,x2,y1], [x1,y1,x2,y1], [x1,y1,x2,y1]...]
+
+	## convert to [[x_center,y_center], [x_center,y_center], ..]
+	list_of_points = []
+	for box in list_of_boxes:
+		list_of_points.append([int((box[0] + box[2])/2), int((box[1] + box[3])/2)])
+	return list_of_points
+
 
 
 class Preprocessing_for_Annotation:
@@ -98,6 +111,7 @@ class Preprocessing_for_Annotation:
 		self.colony = colony ## can be beer, shack, rain, rocks
 		self.parent_path = parent_path
 		self.video_folder = video_folder
+		#self.yolo_model = YOLO("/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train_blue/weights/best.pt")
 
 
 	
@@ -138,7 +152,7 @@ class Preprocessing_for_Annotation:
 
 			new_frame = np.zeros((frame_h,frame_w,3), dtype="uint8")
 			new_frame[:,:,0] = gray
-			new_frame[:,:,1] = cv2.absdiff(gray,average_frame)*3
+			new_frame[:,:,1] = cv2.absdiff(gray,average_frame)*3 ## try also dividing by standard deviation of all pixels in the video and see if that helps for shadows
 			
 
 			### only frames between start_frame and end_frame for annotations 
@@ -150,17 +164,55 @@ class Preprocessing_for_Annotation:
 				
 				## get blob detections for semi-assisted annotations only for first frame of this sequence and write to xml file. We are doing this on first frame only so that I can manually track on CVAT.
 				if frame_number == start_frame:
+					
+					### blob detection - returns list of lists [[x1,y1], [x2,y2], ...] where xn,yn is the center detected by blob detection
 					list_of_points = blob_detection(new_frame, frame_number)
-					## create boierplate xml file with job id from CVAT
+					
+					### using a YOLO trained model instead of blob detection
+					#list_of_points = yolo_trained_model(self.yolo_model, new_frame)
+
+					### create boierplate xml file with job id from CVAT
 					print ('creating xml file for CVAT')
 					root = create_xml_annotations.create_xml_file_boilerplate(job_id=job_id)
-					create_xml_annotations.add_points_to_xml_file(root, list_of_points, filename= self.parent_path + self.video_folder + self.colony + '_' + self.video_folder[:-1] + '_frame_' + str(start_frame) + '_to_' + str(end_frame) + '.xml')
+					create_xml_annotations.add_tracks_to_xml_file(root, list_of_points, filename= self.parent_path + self.video_folder + self.colony + '_' + self.video_folder[:-1] + '_frame_' + str(start_frame) + '_to_' + str(end_frame) + '.xml')
 					print ('done writing to xml file')
 
 
 			frame_number +=1
+		cap.release()
+
+
+	def convert_to_bg_subtracted_video(self, video):
+		### function to take a video (gray),convert every frame into the average subtracted version (blue), and save as new video
+		average_frame = calculate_avg_frame(video)
+		frame_h,frame_w = average_frame.shape       #### shape is 1080,1920,1
+		
+		cap = cv2.VideoCapture(video)
+		total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+		vid_out = cv2.VideoWriter(self.parent_path + self.video_folder + video.split('/')[-1].split('.')[0] + '_avg_subtracted.mp4' ,cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1080))
+
+		while(1):
+			ret, frame = cap.read()
+			if frame is None:
+				break
+	
+			gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+			new_frame = np.zeros((frame_h,frame_w,3), dtype="uint8")
+			new_frame[:,:,0] = gray
+			new_frame[:,:,1] = cv2.absdiff(gray,average_frame)*3 ## try also dividing by standard deviation of all pixels in the video and see if that helps for shadows
+
+			vid_out.write(new_frame)
+
+		cap.release()
+		vid_out.release()
+
+
 
 if __name__ == '__main__':
 	A = Preprocessing_for_Annotation('shack', parent_path = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/', video_folder='2024-08-22_14_01_01/')
+	#A = Preprocessing_for_Annotation('beer', parent_path = '/media/tarun/Backup5TB/all_ant_data/beer-tree-07-17-2024_to_07-31-2024/', video_folder='2024-07-21_06_01_02/')
 	video = A.convert_to_mp4()
-	A.write_frames_and_xml_for_annotations(video, 20, 50, "1280343")
+	A.write_frames_and_xml_for_annotations(video, 100, 130, "1892470")
+	A.convert_to_bg_subtracted_video(video)

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+computer_vision_methods/sort/
+computer_vision_methods/yolo_ultralytics/runs/
+preprocessing_for_annotation/runs/
+*.pt
