@@ -3,6 +3,7 @@ sys.path.append('../')
 sys.path.append('../utils')
 sys.path.append('../preprocessing_for_annotation')
 sys.path.append('../visualization')
+sys.path.append('./yolo_ultralytics')
 
 import json
 import matplotlib.pyplot as plt
@@ -11,8 +12,9 @@ import copy
 import read_xml_files_from_cvat, converting_points_to_boxes
 import preprocessing_for_annotation
 import plots_comparing_predictions_and_gt
-
+from ultralytics import YOLO
 import cv2
+import yolo_predict
 
 def compute_iou(box_1, box_2):
     '''
@@ -215,6 +217,18 @@ def get_blob_detection_preds(gts_boxes_dict):
     return preds_boxes_dict
 
 
+def get_yolo_detection_preds(gts_boxes_dict):
+    model = YOLO("/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt")
+
+    preds_boxes_dict = {}
+    for image in list(gts_boxes_dict.keys()):
+        preds_boxes_dict[image] = []
+        list_of_points = yolo_predict.process_image(model, image, imgsz=1920)
+        preds_boxes_dict[image] = list_of_points
+
+    return preds_boxes_dict
+
+
 def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box_size, label):
     ### read and convert ground truth points from cvat into boxes #####
     gts_boxes_dict = read_and_convert_ground_truth(annotation_xml_file, folder_where_annotated_video_came_from, box_size)
@@ -224,7 +238,8 @@ def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box
 
 
     ### get predictions for the images in the ground truth dict #####
-    preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
+    #preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
+    preds_boxes_dict = get_yolo_detection_preds(gts_boxes_dict)
     #plots_comparing_predictions_and_gt.plot_boxes_on_image(list(preds_boxes_dict.keys())[0], preds_boxes_dict[list(preds_boxes_dict.keys())[0]], label='2024-08-22_03_01_01_prediction')
 
 
@@ -245,8 +260,8 @@ def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box
 
 
 if __name__ == '__main__':
-    gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01')
-    gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-01_20_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/', 20, '2024-08-01_20_01_00')
+    gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-09_23_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-25-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00')
+    gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-27_23_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_10-28-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01')
     gts_3, preds_3 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
 
     gts_1.update(gts_2)
@@ -265,9 +280,9 @@ if __name__ == '__main__':
     plt.scatter(gt_count, pred_count, c='black')
     plt.ylabel('blob detection counts')
     plt.xlabel('ground truth counts')
-    plt.xlim(0,200)
-    plt.ylim(0,200)
-    plt.plot([0,50,100,150,200], [0,50,100,150,200], color='red')
+    plt.xlim(0,250)
+    plt.ylim(0,250)
+    plt.plot([0,50,100,150,200,250], [0,50,100,150,200,250], color='red')
     plt.show()
 
-    ##plot_pr_curve(preds_boxes_dict, gts_boxes_dict)
+    ###plot_pr_curve(preds_1, gts_1)
