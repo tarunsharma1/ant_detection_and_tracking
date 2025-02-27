@@ -30,7 +30,7 @@ class Patchify:
 		self.annotation_xml_file = annotation_xml_file
 		self.folder_where_annotated_video_came_from = folder_where_annotated_video_came_from
 		self.image_width, self.image_height = 1920,1080
-		self.grid_size = 3 ### we want a 3x3 grid of patches with no overlap  
+		self.grid_size = 5 ### we want a 3x3 grid of patches with no overlap  
 		self.patch_width, self.patch_height = int(self.image_width/self.grid_size), int(self.image_height/self.grid_size)
 		print ('creating xml file for CVAT')
 		self.xml_root = create_xml_annotations.create_xml_file_boilerplate(job_id='12345')
@@ -43,7 +43,7 @@ class Patchify:
 			points = gts_points_dict[img_file] ## this is a list of lists [[x_center, y_center], [x_center, y_center], [x_center, y_center], ...]
 			self.patchify(img_file, points)
 
-	def patchify(self, img_file, points):
+	def patchify(self, img_file, points, patch_index_to_keep=None):
 		### for given annotations for an image, go through them and divide them into bins where each bin contains annotations for patch_i
 		bins = defaultdict(list)
 		for (x,y) in points:
@@ -58,6 +58,9 @@ class Patchify:
 		for i in range(self.grid_size):
 			for k in range(self.grid_size):
 				ind = i*self.grid_size + k
+				if patch_index_to_keep:
+					if ind!=patch_index_to_keep:
+						continue
 				img_patch = img[i*self.patch_height:(i+1)*self.patch_height,k*self.patch_width:(k+1)*self.patch_width,:]
 				patch_points = bins[ind]
 

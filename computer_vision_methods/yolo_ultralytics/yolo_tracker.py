@@ -44,25 +44,30 @@ def check_for_movement(x1,y1,x2,y2,ant_id):
 
 # Load an official or custom model
 
-model = YOLO('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train_blue/weights/best.pt')  # Load a custom trained model
-mot_tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.1)
+model = YOLO('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt')  # Load a custom trained model
+mot_tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.01)
 
 
-source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_14_01_01/2024-08-22_14_01_01_avg_subtracted.mp4'
-
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_avg_subtracted.mp4'
+source = '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-23_05_01_01/2024-08-23_05_01_01_avg_subtracted.mp4'
 
 results = model(device='cpu', source=source, conf=0.1, iou=0.1, imgsz=1920, line_width=1, max_det=1000, show_labels=False, stream=True)
 
 
 cap = cv2.VideoCapture(source)
-vid_out = cv2.VideoWriter('./test_output_shack.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
+#vid_out = cv2.VideoWriter('./test_output_shack.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
 
 dist_moved_all_ants = []
 ant_dict_for_interpolation = {}
 
+## dictionary to keep track of position (center of box) every frame in order to calculate the direction based on position in current frame and previous frame 
+ant_center = {}
+## dictionary to keep track of direction, (up or down or same) based on the previous frame 
+ant_direction = {}
+direction_threshold = 5
+
 for idx,result in enumerate(results):
-	#if idx > 100:
-	#	break
+
 	ids_rejected = 0
 	ret, frame = cap.read()
 	## resize to the shape that yolo is detecting on 
@@ -73,44 +78,78 @@ for idx,result in enumerate(results):
 	print ('ants detected : ' + str(all_boxes.shape[0]))
 	track_bbs_ids = mot_tracker.update(all_boxes)
 	print ('ants tracked : ' + str(track_bbs_ids.shape[0]))
+
+		
 	
 	for tracked_ant in track_bbs_ids:
 		x1,y1,x2,y2,ant_id = tracked_ant
 		x1,y1,x2,y2 = int(x1),int(y1), int(x2), int(y2)
 
-		## before calculating distance moved, check if flag for this ID has been set (i.e has it ever moved before). If yes, skip the calculation and return -1
-		if ant_id not in ant_dict_for_movement_flags.keys():
-			ant_dict_for_movement_flags[ant_id] = 0
-
-		elif ant_dict_for_movement_flags[ant_id] == 1:
-			## this ID has moved more than the threshold at some point so it should be an ant and not removed
-			cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
-			cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
-			
+		if ant_id not in ant_center:
+			ant_center[ant_id] = [(x1+x2)/2, (y1+y2)/2]
 		else:
-			## we don't know if it is an ant or not, we need to check	
-			## eliminate the ones that don't move much in 5 frames ##
-			dist_moved = check_for_movement(x1,y1,x2,y2,ant_id)
-			#dist_moved_all_ants.append(dist_moved)
+			prev_x, prev_y = ant_center[ant_id]
+			curr_x, curr_y = (x1+x2)/2, (y1+y2)/2
 
-			if dist_moved > dist_moved_threshold:
-				## save to a dictionary per id ..i.e for every id you have X=frame number, Y=box coords and then do linear interpolation for missed frames.
-				#ant_dict_for_interpolation[ant_id]
-				
-				## set flag for future memory so that we don't remove this ID if the ant stops later
-				#ant_dict_for_movement_flags[ant_id] = 1
-				
+			if abs(curr_y - prev_y) >= direction_threshold:
+				if curr_y > prev_y:
+					## going up
+					ant_direction[ant_id] = 1
+				elif curr_y < prev_y:	
+					ant_direction[ant_id] = 2
+				else:
+					ant_direction[ant_id] = 3
+
+			ant_center[ant_id] = [curr_x, curr_y]
+
+		## draw rect around ant
+		if ant_id in ant_direction:
+			if ant_direction[ant_id] == 1:
 				cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
-				cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
-			else:
-				## reject this ID for now but it still gets checked everytime in case it moves at some point. 
-				ids_rejected +=1
+			
+			elif ant_direction[ant_id] == 2:
+				cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
+			#else:
+			#	cv2.rectangle(frame,(x1,y1),(x2,y2),(255,0,0),2)
+				
+			
+
+			#cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
+
+
+		## before calculating distance moved, check if flag for this ID has been set (i.e has it ever moved before). If yes, skip the calculation and return -1
+		# if ant_id not in ant_dict_for_movement_flags:
+		# 	ant_dict_for_movement_flags[ant_id] = 0
+
+		# elif ant_dict_for_movement_flags[ant_id] == 1:
+		# 	## this ID has moved more than the threshold at some point so it should be an ant and not removed
+		# 	cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+		# 	cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
+			
+		# else:
+		# 	## we don't know if it is an ant or not, we need to check	
+		# 	## eliminate the ones that don't move much in 5 frames ##
+		# 	dist_moved = check_for_movement(x1,y1,x2,y2,ant_id)
+		# 	#dist_moved_all_ants.append(dist_moved)
+
+		# 	if dist_moved > dist_moved_threshold:
+		# 		## save to a dictionary per id ..i.e for every id you have X=frame number, Y=box coords and then do linear interpolation for missed frames.
+		# 		#ant_dict_for_interpolation[ant_id]
+				
+		# 		## set flag for future memory so that we don't remove this ID if the ant stops later
+		# 		ant_dict_for_movement_flags[ant_id] = 1
+				
+		# 		cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+		# 		cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
+		# 	else:
+		# 		## reject this ID for now but it still gets checked everytime in case it moves at some point. 
+		# 		ids_rejected +=1
 		
-	print ('rejected ' + str(ids_rejected) + ' ids based on movement')
+	#print ('rejected ' + str(ids_rejected) + ' ids based on movement')
 
 	cv2.imshow('Frame',frame)
 	cv2.waitKey(30)
-	vid_out.write(frame)
+	#vid_out.write(frame)
 
 #plt.hist(dist_moved_all_ants, 100)
 #plt.show()

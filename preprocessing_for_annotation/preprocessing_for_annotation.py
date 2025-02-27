@@ -1,18 +1,22 @@
 import cv2
 import numpy as np
-from skimage.feature import blob_doh
+from collections import defaultdict
+#from skimage.feature import blob_doh
 from skimage import measure
 import matplotlib.pyplot as plt
+from ultralytics import YOLO
 import os
 import json
 from os import path
 import copy
 import glob
 import sys
-sys.path.append('../utils')
+repo_path = '/home/tarun/Desktop/ant_detection_and_tracking/'
+sys.path.append(repo_path + '/utils')
+sys.path.append(repo_path + '/computer_vision_methods')
 import convert_video_h264_to_mp4
 import create_xml_annotations
-from ultralytics import YOLO
+from patchify_images_and_annotations import Patchify
 
 
 """
@@ -139,6 +143,9 @@ class Preprocessing_for_Annotation:
 		frame_number = 0
 		kernel = np.ones((2,2), np.uint8)
 
+		points_dict = defaultdict(list)
+		xml_file = self.parent_path + self.video_folder + self.colony + '_' + self.video_folder[:-1] + '_frame_' + str(start_frame) + '_to_' + str(end_frame) + '.xml'
+
 		while(1):
 			ret, frame = cap.read()
 			if frame is None:
@@ -161,25 +168,31 @@ class Preprocessing_for_Annotation:
 				cv2.imwrite(self.parent_path + self.video_folder + self.video_folder[:-1] + '_' + str(frame_number) + '.jpg',new_frame)
 				cv2.imwrite(self.parent_path + self.video_folder + self.video_folder[:-1] + '_OG_' + str(frame_number) + '.jpg',gray)
 
+
 				
 				## get blob detections for semi-assisted annotations only for first frame of this sequence and write to xml file. We are doing this on first frame only so that I can manually track on CVAT.
-				if frame_number == start_frame:
+				if frame_number == start_frame+1:
 					
 					### blob detection - returns list of lists [[x1,y1], [x2,y2], ...] where xn,yn is the center detected by blob detection
 					list_of_points = blob_detection(new_frame, frame_number)
-					
+
+					points_dict[self.parent_path + self.video_folder + self.video_folder[:-1] + '_OG_' + str(frame_number-1) + '.jpg'] = []
+					points_dict[self.parent_path + self.video_folder + self.video_folder[:-1] + '_OG_' + str(frame_number) + '.jpg'] = list_of_points
+					points_dict[self.parent_path + self.video_folder + self.video_folder[:-1] + '_OG_' + str(frame_number+1) + '.jpg'] = []					
 					### using a YOLO trained model instead of blob detection
 					#list_of_points = yolo_trained_model(self.yolo_model, new_frame)
 
 					### create boierplate xml file with job id from CVAT
 					print ('creating xml file for CVAT')
 					root = create_xml_annotations.create_xml_file_boilerplate(job_id=job_id)
-					create_xml_annotations.add_tracks_to_xml_file(root, list_of_points, filename= self.parent_path + self.video_folder + self.colony + '_' + self.video_folder[:-1] + '_frame_' + str(start_frame) + '_to_' + str(end_frame) + '.xml')
+					create_xml_annotations.add_tracks_to_xml_file(root, list_of_points, filename= xml_file)
 					print ('done writing to xml file')
 
 
 			frame_number +=1
 		cap.release()
+		return xml_file, points_dict
+		
 
 
 	def convert_to_bg_subtracted_video(self, video):
@@ -207,12 +220,18 @@ class Preprocessing_for_Annotation:
 
 		cap.release()
 		vid_out.release()
-
+		return self.parent_path + self.video_folder + video.split('/')[-1].split('.')[0] + '_avg_subtracted.mp4'
 
 
 if __name__ == '__main__':
-	A = Preprocessing_for_Annotation('shack', parent_path = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/', video_folder='2024-08-22_14_01_01/')
+	parent_path = '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/'
+	video_folder='2024-08-23_05_01_01/'
+
+	A = Preprocessing_for_Annotation('rain', parent_path, video_folder )
 	#A = Preprocessing_for_Annotation('beer', parent_path = '/media/tarun/Backup5TB/all_ant_data/beer-tree-07-17-2024_to_07-31-2024/', video_folder='2024-07-21_06_01_02/')
 	video = A.convert_to_mp4()
-	A.write_frames_and_xml_for_annotations(video, 100, 130, "1892470")
-	A.convert_to_bg_subtracted_video(video)
+	bg_subtracted_vid = A.convert_to_bg_subtracted_video(video)
+	#xml_file, points_dict_start_frame = A.write_frames_and_xml_for_annotations(video, 1, 200, "1892470")
+	#P = Patchify(xml_file, parent_path + video_folder)
+	#for frame in points_dict_start_frame:
+	#	P.patchify(frame, points_dict_start_frame[frame], patch_index_to_keep=None)

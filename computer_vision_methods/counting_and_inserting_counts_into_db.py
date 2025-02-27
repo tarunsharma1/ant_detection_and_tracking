@@ -2,7 +2,7 @@ import sys
 sys.path.append('../')
 sys.path.append('../utils')
 sys.path.append('../preprocessing_for_annotation')
-sys.path.append('./yolo_ultralytics')
+sys.path.append('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics')
 
 from ultralytics import YOLO
 import preprocessing_for_annotation

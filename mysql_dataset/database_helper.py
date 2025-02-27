@@ -62,7 +62,9 @@ def create_tables(connection):
 	    blob_detection_average_count FLOAT,
 	    blob_detection_std_dev FLOAT,
 	    yolo FLOAT,
-	    herdnet FLOAT
+	    yolo_std_dev FLOAT,
+	    herdnet FLOAT,
+	    FOREIGN KEY (video_id) REFERENCES Videos(video_id)
 	);
 	"""
 
@@ -88,7 +90,10 @@ def insert_video(connection, video_id, site_id, time_stamp, temperature, humidit
     execute_query(connection, query)
     connection.commit()
 
-
+def add_video_to_counts_table(connection, video_id):
+	query = f"""INSERT INTO Counts (video_id) VALUES ('{video_id}');"""
+	execute_query(connection, query)
+	connection.commit()
 
 def get_site_id_from_site_name(connection, site_name):
 	query = f"""
