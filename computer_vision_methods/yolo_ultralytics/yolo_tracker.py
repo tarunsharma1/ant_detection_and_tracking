@@ -2,11 +2,11 @@ import sys
 sys.path.append('../')
 
 from ultralytics import YOLO
-
+import csv
 from sort.sort import *
 import cv2
 import math
-
+import pandas as pd
 
 ant_dict_for_movement = {} # mapping id to distance moved in the last window_length_for_movement_thresh frames
 ant_dict_for_movement_flags = {} # If an ID was moving and then stops, it shouldn't be discarded. This is a flag per id and if the flag is ever set then don't check the distance moved again.
@@ -42,19 +42,55 @@ def check_for_movement(x1,y1,x2,y2,ant_id):
 
 
 
+def filter_detections(detections, mask):
+    """
+    Removes detections that fall inside the masked area.
+    
+    detections: List of bounding boxes in [x, y, x, y] format.
+    mask: Binary mask where 0 means ignore.
+    
+    Returns: Filtered list of detections.
+    """
+    filtered_detections = []
+    
+    for (x1, y1, x2, y2) in detections:
+        # Compute the center of the bounding box
+        center_x, center_y = int((x1 + x2) / 2), int((y1 + y2) / 2)
+        
+        # Check if the center is inside the mask (0 = ignore, 255 = keep)
+        if mask[center_y, center_x] == 255:
+            filtered_detections.append([x1, y1, x2, y2])
+    
+    return np.array(filtered_detections)
+
+
+
+mask = cv2.imread('/home/tarun/Downloads/2024-08-01_20_01_00_10_resized.png',0)
+ret, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+
+
 # Load an official or custom model
 
-model = YOLO('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt')  # Load a custom trained model
-mot_tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.01)
+
+## TODO: this needs to be changed to read from the csv files produced already after running yolo. 
+#model = YOLO('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt')  # Load a custom trained model
+
+video_detections_csv = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_yolo_detections.csv'
+df = pd.read_csv(video_detections_csv)
 
 
-#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_avg_subtracted.mp4'
-source = '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-23_05_01_01/2024-08-23_05_01_01_avg_subtracted.mp4'
-
-results = model(device='cpu', source=source, conf=0.1, iou=0.1, imgsz=1920, line_width=1, max_det=1000, show_labels=False, stream=True)
+df = df.loc[df.confidence > 0.2]
 
 
+
+mot_tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.1)
+
+
+source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_avg_subtracted.mp4'
 cap = cv2.VideoCapture(source)
+
+#results = model(device='cpu', source=source, conf=0.1, iou=0.1, imgsz=1920, line_width=1, max_det=1000, show_labels=False, stream=True)
+
 #vid_out = cv2.VideoWriter('./test_output_shack.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
 
 dist_moved_all_ants = []
@@ -66,16 +102,29 @@ ant_center = {}
 ant_direction = {}
 direction_threshold = 5
 
-for idx,result in enumerate(results):
+frame_number = 0
+#for idx,result in enumerate(results):
+
+while frame_number<= 600:
 
 	ids_rejected = 0
 	ret, frame = cap.read()
 	## resize to the shape that yolo is detecting on 
 	frame = cv2.resize(frame, (1920, 1088))
 	
+	df_frame = df.loc[df.frame_number == frame_number]
 
-	all_boxes = result.boxes.xyxy.numpy() #this is of shape (n_boxes,4) in absolute coordinates
+	#all_boxes = result.boxes.xyxy.numpy() #this is of shape (n_boxes,4) in absolute coordinates
+	
+	all_boxes = df_frame[['x1', 'y1', 'x2', 'y2']].values.tolist()
+	all_boxes = np.array(all_boxes)
+	print ('########################')
 	print ('ants detected : ' + str(all_boxes.shape[0]))
+	
+	all_boxes = filter_detections(all_boxes, mask_bin)
+
+	print ('ants detected after filtering : ' + str(all_boxes.shape[0]))
+
 	track_bbs_ids = mot_tracker.update(all_boxes)
 	print ('ants tracked : ' + str(track_bbs_ids.shape[0]))
 
@@ -149,6 +198,8 @@ for idx,result in enumerate(results):
 
 	cv2.imshow('Frame',frame)
 	cv2.waitKey(30)
+	frame_number += 1
+
 	#vid_out.write(frame)
 
 #plt.hist(dist_moved_all_ants, 100)
