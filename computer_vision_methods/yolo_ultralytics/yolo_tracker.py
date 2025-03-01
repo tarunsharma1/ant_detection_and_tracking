@@ -64,32 +64,52 @@ def filter_detections(detections, mask):
     return np.array(filtered_detections)
 
 
+def distance_from_center(x,y):
+	"""
+	calculates distance between nest entrance (center coords) and ant position (x,y)
+	"""
+	center_x, center_y = center_coordinates
+	return math.sqrt((y - center_y)**2 + (x - center_x)**2)
 
-mask = cv2.imread('/home/tarun/Downloads/2024-08-01_20_01_00_10_resized.png',0)
+### shack ############
+#mask = cv2.imread('/home/tarun/Desktop/masks/2024-08-01_20_01_00_10_resized.png',0)
+#center_coordinates = (960, 400)
+
+### rain ##############
+mask = cv2.imread('/home/tarun/Desktop/masks/2024-08-22_21_01_00_100_resized.png',0)
+center_coordinates = (1050, 600)
+
+
 ret, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
 
 
-# Load an official or custom model
+mot_tracker = Sort(max_age=5, min_hits=3, iou_threshold=0.1)
 
 
-## TODO: this needs to be changed to read from the csv files produced already after running yolo. 
-#model = YOLO('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt')  # Load a custom trained model
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_avg_subtracted.mp4'
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_23_01_01/2024-08-01_23_01_01_avg_subtracted.mp4'
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-02_01_01_00/2024-08-02_01_01_00_avg_subtracted.mp4'
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-02_03_01_06/2024-08-02_03_01_06_avg_subtracted.mp4'
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-02_05_01_01/2024-08-02_05_01_01_avg_subtracted.mp4'
+#source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-02_05_01_01/2024-08-02_05_01_01_avg_subtracted.mp4'
 
-video_detections_csv = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_yolo_detections.csv'
+source = '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-23_05_01_01/2024-08-23_05_01_01_avg_subtracted.mp4'
+
+
+
+
+
+### read precomputed detections
+vid_name = source.split('/')[-1].split('_avg_subtracted.mp4')[0]
+vid_path = '/'.join(source.split('/')[:-1])
+video_detections_csv = vid_path + '/' + vid_name + '_yolo_detections.csv'
+
 df = pd.read_csv(video_detections_csv)
+df = df.loc[df.confidence >= 0.362]
 
 
-df = df.loc[df.confidence > 0.2]
-
-
-
-mot_tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.1)
-
-
-source = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-01_20_01_00/2024-08-01_20_01_00_avg_subtracted.mp4'
 cap = cv2.VideoCapture(source)
 
-#results = model(device='cpu', source=source, conf=0.1, iou=0.1, imgsz=1920, line_width=1, max_det=1000, show_labels=False, stream=True)
 
 #vid_out = cv2.VideoWriter('./test_output_shack.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
 
@@ -100,36 +120,34 @@ ant_dict_for_interpolation = {}
 ant_center = {}
 ## dictionary to keep track of direction, (up or down or same) based on the previous frame 
 ant_direction = {}
-direction_threshold = 5
-
+direction_threshold = 2
 frame_number = 0
-#for idx,result in enumerate(results):
 
-while frame_number<= 600:
+ants_going_towards = 0
+ants_going_away = 0
 
-	ids_rejected = 0
+while True:
 	ret, frame = cap.read()
+
+	if not ret:
+		break	
+	ids_rejected = 0
 	## resize to the shape that yolo is detecting on 
 	frame = cv2.resize(frame, (1920, 1088))
 	
 	df_frame = df.loc[df.frame_number == frame_number]
 
-	#all_boxes = result.boxes.xyxy.numpy() #this is of shape (n_boxes,4) in absolute coordinates
-	
 	all_boxes = df_frame[['x1', 'y1', 'x2', 'y2']].values.tolist()
 	all_boxes = np.array(all_boxes)
 	print ('########################')
 	print ('ants detected : ' + str(all_boxes.shape[0]))
 	
 	all_boxes = filter_detections(all_boxes, mask_bin)
-
-	print ('ants detected after filtering : ' + str(all_boxes.shape[0]))
+	print ('ants detected after mask filtering : ' + str(all_boxes.shape[0]))
 
 	track_bbs_ids = mot_tracker.update(all_boxes)
 	print ('ants tracked : ' + str(track_bbs_ids.shape[0]))
 
-		
-	
 	for tracked_ant in track_bbs_ids:
 		x1,y1,x2,y2,ant_id = tracked_ant
 		x1,y1,x2,y2 = int(x1),int(y1), int(x2), int(y2)
@@ -140,27 +158,27 @@ while frame_number<= 600:
 			prev_x, prev_y = ant_center[ant_id]
 			curr_x, curr_y = (x1+x2)/2, (y1+y2)/2
 
-			if abs(curr_y - prev_y) >= direction_threshold:
-				if curr_y > prev_y:
-					## going up
+			## check if distance from nest entrance is increasing or decreasing
+			change_in_distance_from_center = distance_from_center(curr_x, curr_y) - distance_from_center(prev_x, prev_y)
+			if abs(change_in_distance_from_center) >= direction_threshold:
+				if change_in_distance_from_center > 0:
+					## going away from nest entrance
 					ant_direction[ant_id] = 1
-				elif curr_y < prev_y:	
-					ant_direction[ant_id] = 2
 				else:
-					ant_direction[ant_id] = 3
-
+					## going toward	nest entrance
+					ant_direction[ant_id] = 2
+				
 			ant_center[ant_id] = [curr_x, curr_y]
 
-		## draw rect around ant
+		## if ant hasn't changed direction, still draw the old direction it was traveling in
 		if ant_id in ant_direction:
 			if ant_direction[ant_id] == 1:
 				cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+				ants_going_away += 1
 			
-			elif ant_direction[ant_id] == 2:
+			else:
 				cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
-			#else:
-			#	cv2.rectangle(frame,(x1,y1),(x2,y2),(255,0,0),2)
-				
+				ants_going_towards += 1
 			
 
 			#cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
@@ -196,14 +214,21 @@ while frame_number<= 600:
 		
 	#print ('rejected ' + str(ids_rejected) + ' ids based on movement')
 
+	#print (f' boxes actually drawn: {ants_going_up + ants_going_down}')
+	#print (f' ants going up this frame: {ants_going_up} and going down: {ants_going_down}')
+	cv2.circle(frame, center_coordinates, 5, (0,0,255), -1)
 	cv2.imshow('Frame',frame)
 	cv2.waitKey(30)
 	frame_number += 1
 
 	#vid_out.write(frame)
 
+
+print (f'avg ants going away from nest entrance: {round(ants_going_away/frame_number)} and going toward: {round(ants_going_towards/frame_number)}')
+
+
 #plt.hist(dist_moved_all_ants, 100)
 #plt.show()
 
-vid_out.release()
+#vid_out.release()
 cap.release()

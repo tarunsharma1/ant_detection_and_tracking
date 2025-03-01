@@ -224,8 +224,8 @@ class Preprocessing_for_Annotation:
 
 
 if __name__ == '__main__':
-	parent_path = '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/'
-	video_folder='2024-08-23_05_01_01/'
+	parent_path = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/'
+	video_folder='2024-08-02_05_01_01/'
 
 	A = Preprocessing_for_Annotation('rain', parent_path, video_folder )
 	#A = Preprocessing_for_Annotation('beer', parent_path = '/media/tarun/Backup5TB/all_ant_data/beer-tree-07-17-2024_to_07-31-2024/', video_folder='2024-07-21_06_01_02/')
