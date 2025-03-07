@@ -59,17 +59,7 @@ if __name__ == '__main__':
 	#list_of_boxes = process_image(model,"/media/tarun/Backup5TB/all_ant_data/beer-tree-07-17-2024_to_07-31-2024/2024-07-21_06_01_02/2024-07-21_06_01_02_100.jpg", imgsz=1920)
 
 	## this should be the original gray video
-	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/*')
-	for vid_folder in vid_folders:
-		folder = vid_folder
-		name = vid_folder.split('/')[-1]
-		video = folder + '/' +  name + '.mp4'
-		if os.path.exists(video):
-			print ('######### ' + video + ' ###############')
-			process_video_and_store_csv(model, video)
-
-	## this should be the original gray video
-	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/*')
 	for vid_folder in vid_folders:
 		folder = vid_folder
 		name = vid_folder.split('/')[-1]

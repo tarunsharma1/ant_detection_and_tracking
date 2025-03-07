@@ -224,14 +224,13 @@ class Preprocessing_for_Annotation:
 
 
 if __name__ == '__main__':
-	parent_path = '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/'
-	video_folder='2024-08-02_05_01_01/'
+	parent_path = '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-25-2024/'
+	video_folder='2024-10-23_00_01_06/'
 
 	A = Preprocessing_for_Annotation('rain', parent_path, video_folder )
-	#A = Preprocessing_for_Annotation('beer', parent_path = '/media/tarun/Backup5TB/all_ant_data/beer-tree-07-17-2024_to_07-31-2024/', video_folder='2024-07-21_06_01_02/')
 	video = A.convert_to_mp4()
-	bg_subtracted_vid = A.convert_to_bg_subtracted_video(video)
-	#xml_file, points_dict_start_frame = A.write_frames_and_xml_for_annotations(video, 1, 200, "1892470")
+	#bg_subtracted_vid = A.convert_to_bg_subtracted_video(video)
+	xml_file, points_dict_start_frame = A.write_frames_and_xml_for_annotations(video, 1, 200, "1892470")
 	#P = Patchify(xml_file, parent_path + video_folder)
 	#for frame in points_dict_start_frame:
 	#	P.patchify(frame, points_dict_start_frame[frame], patch_index_to_keep=None)
