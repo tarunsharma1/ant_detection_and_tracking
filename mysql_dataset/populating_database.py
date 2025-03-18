@@ -84,17 +84,14 @@ def populate_videos_table(colony, parent_folder):
 
 
 
-#populate_videos_table('shack', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/')
-#populate_videos_table('shack', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-22-2024_to_09-11-2024/')
-#populate_videos_table('shack', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-09-11-2024_to_09-18-2024/')
+#populate_videos_table('shack', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/')
+#populate_videos_table('shack', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-26-2024_to_09-18-2024/')
 
-## haven't run this yet
-populate_videos_table('shack', '/media/tarun/Backup5TB/all_ant_data/shack-tree-06-06-2024_to_06-26-2024/')
 
-#populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/')
-#populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-25-2024/')
-#populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-11-15-2024_to_12-06-2024/')
+populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/')
+populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/')
+populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-20-2024_to_10-25-2024/')
+populate_videos_table('rain', '/media/tarun/Backup5TB/all_ant_data/rain-tree-11-15-2024_to_12-06-2024/')
 
-#populate_videos_table('beer', '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-30-2024/')
-#populate_videos_table('beer', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_10-28-2024/')
-#populate_videos_table('beer', '/media/tarun/Backup5TB/all_ant_data/beer-10-28-2024_to_11-02-2024/')
+#populate_videos_table('beer', '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/')
+#populate_videos_table('beer', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/')

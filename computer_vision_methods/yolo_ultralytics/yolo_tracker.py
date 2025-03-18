@@ -86,7 +86,7 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 	cap = cv2.VideoCapture(video)
 
 
-	#vid_out = cv2.VideoWriter('./test_output_shack.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
+	#vid_out = cv2.VideoWriter('/home/tarun/Desktop/plots_for_committee_meeting/beer-away-toward-2024-08-03_20_01_01.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
 
 	dist_moved_all_ants = []
 	ant_dict_for_interpolation = {}
@@ -108,7 +108,7 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 	csv_writer = csv.writer(csv_file)
 	csv_writer.writerow(['frame_number', 'ant_id', 'x1', 'y1', 'x2', 'y2', 'direction'])
 
-
+	
 
 	while True:
 		ants_going_towards = 0
@@ -170,12 +170,12 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 			## if ant hasn't changed direction, or has now stopped moving, still draw the old direction it was traveling in
 			if ant_id in ant_direction:
 				if ant_direction[ant_id] == 1:
-					#cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+					cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
 					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'away'])
 					ants_going_away += 1
 				
 				elif ant_direction[ant_id] == 2:
-					#cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
+					cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
 					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'toward'])
 					ants_going_towards += 1
 				
@@ -185,18 +185,19 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 		total_ants_going_towards.append(ants_going_towards)
 		total_ants_going_away.append(ants_going_away)
 
-		#cv2.circle(frame, center_coordinates, 5, (0,0,255), -1)
-		#cv2.imshow('Frame',frame)
-		#cv2.waitKey(30)
+		cv2.circle(frame, center_coordinates, 5, (0,0,255), -1)
+		cv2.imshow('Frame',frame)
+		cv2.waitKey(30)
 		frame_number += 1
 
 		#vid_out.write(frame)
 
 	csv_file.close()
-	print (f'avg ants going away from nest entrance: {round(np.mean(np.array(total_ants_going_away)))} and going toward: {round(np.mean(np.array(total_ants_going_towards)))}')
+	if len(total_ants_going_away) != 0 and len(total_ants_going_towards)!=0:
+		print (f'avg ants going away from nest entrance: {round(np.mean(np.array(total_ants_going_away)))} and going toward: {round(np.mean(np.array(total_ants_going_towards)))}')
+	#vid_out.release()
 	cap.release()
-	return round(np.mean(np.array(total_ants_going_away))), {round(np.mean(np.array(total_ants_going_towards)))}
-
+	
 
 
 
@@ -205,12 +206,15 @@ if __name__ == '__main__':
 
 	direction_threshold = 2
 
-	#vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-22-2024_to_09-11-2024/*')
-	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/*')
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/*')
 
 	### shack ############
-	#mask = cv2.imread('/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',0)
+	#mask = cv2.imread('/home/tarun/Downloads/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',0)
 	#center_coordinates = (960, 400)
+
+	#mask = cv2.imread('/home/tarun/Downloads/shack-tree-diffuser-08-26-2024_to_09-18-2024.png',0)
+	#center_coordinates = (1300, 400)
+
 
 	### rain ##############
 	#mask = cv2.imread('/home/tarun/Desktop/masks/rain-tree-08-22-2024_to_09-02-2024.png',0)
@@ -220,20 +224,22 @@ if __name__ == '__main__':
 	#mask = cv2.imread('/home/tarun/Desktop/masks/rain-tree-11-15-2024_to_12-06-2024.png', 0)
 	#center_coordinates = (1050, 450)
 
-	### beer ##############
-	#mask = cv2.imread('/home/tarun/Desktop/masks/beer-tree-08-01-2024_to_08-10-2024.png',0)
-	#center_coordinates = (1120, 500)
+	### rain ##############
+	#mask = cv2.imread('/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png', 0)
+	#center_coordinates = (900, 550)
+
 
 	### beer ##############
-	mask = cv2.imread('/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png',0)
-	center_coordinates = (1120, 600)
+	mask = cv2.imread('/home/tarun/Desktop/masks/beer-tree-08-01-2024_to_08-10-2024.png',0)
+	center_coordinates = (1120, 500)
+
+	### beer ##############
+	#mask = cv2.imread('/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png',0)
+	#center_coordinates = (1120, 600)
 
 
 
 	ret, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
-
-	all_vids_away = []
-	all_vids_toward = []
 
 	for vid_folder in vid_folders:
 		vid_path = vid_folder
@@ -243,13 +249,8 @@ if __name__ == '__main__':
 		video_detections_csv = vid_path + '/' + vid_name + '_yolo_detections.csv'
 		if os.path.exists(video_detections_csv):
 			print ('## processing ' + video)
-			away, toward = track_video(video_detections_csv, vid_path, vid_name, video)
-
-			all_vids_away.append(away)
-			all_vids_toward.append(toward)
-
-
-
+			track_video(video_detections_csv, vid_path, vid_name, video)
+		
 
 
 

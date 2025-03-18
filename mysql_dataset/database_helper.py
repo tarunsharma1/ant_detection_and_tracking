@@ -59,11 +59,10 @@ def create_tables(connection):
 	create_counts_table = """
 	CREATE TABLE IF NOT EXISTS Counts (
 	    video_id VARCHAR(255) PRIMARY KEY,
-	    blob_detection_average_count FLOAT,
-	    blob_detection_std_dev FLOAT,
-	    yolo FLOAT,
-	    yolo_std_dev FLOAT,
-	    herdnet FLOAT,
+	    blob_detection_only_csv VARCHAR(255),
+	    blob_tracking_with_direction_csv VARCHAR(255),
+	    yolo_detection_only_csv VARCHAR(255),
+	    yolo_tracking_with_direction_csv VARCHAR(255),
 	    FOREIGN KEY (video_id) REFERENCES Videos(video_id)
 	);
 	"""

@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append('../')
 sys.path.append('../utils')
@@ -134,7 +135,7 @@ def count_ants_using_blob_detection(video, subset_of_frames=None, params=None):
 def insert_count_into_db():
 	### only get the videos which have not been counted yet
 	query = f"""
-	SELECT video_id from Counts WHERE yolo is NULL;
+	SELECT video_id from Counts WHERE yolo_detection_only_csv is NULL;
 	"""
 	videos = []
 	videos_db = database_helper.execute_query(connection, query)
@@ -146,37 +147,45 @@ def insert_count_into_db():
 	for vid in videos_db:
 		videos.append(vid[0])
 
-	number_of_frames_to_calculate_average_count=5
-	total_frames = 550 ## just to be safe, should be around 600 frames in each video
-	subset_of_frames = list(np.linspace(10,total_frames-1, number_of_frames_to_calculate_average_count, dtype=int))
+	# number_of_frames_to_calculate_average_count=5
+	# total_frames = 550 ## just to be safe, should be around 600 frames in each video
+	# subset_of_frames = list(np.linspace(10,total_frames-1, number_of_frames_to_calculate_average_count, dtype=int))
 
 
 	for video in videos:
 		#_, ant_counts = count_ants_using_blob_detection(video, subset_of_frames)
-		_, ant_counts = count_ants_using_yolo(video, subset_of_frames)
+		#_, ant_counts = count_ants_using_yolo(video, subset_of_frames)
 
 		#print ('counts are : ', ant_count)
-		average_ant_count = np.mean(np.array(ant_counts))
-		ant_count_std_dev = np.std(np.array(ant_counts))
-		print ('average ant count is ' + str(average_ant_count) + ' std dev is' + str(ant_count_std_dev))
+		# average_ant_count = np.mean(np.array(ant_counts))
+		# ant_count_std_dev = np.std(np.array(ant_counts))
+		# print ('average ant count is ' + str(average_ant_count) + ' std dev is' + str(ant_count_std_dev))
 		
 		#### if video_id entry doesn't exist
 		# query = f"""
 		# INSERT INTO Counts (video_id, blob_detection_average_count, blob_detection_std_dev)
 		# VALUES ('{video}', {average_ant_count}, {ant_count_std_dev});"""
 		
+		
+		#### check for csv file and insert the path to the csv file containing pre-run detections #######
+		detections_csv = video.split('.mp4')[0] + '_yolo_detections.csv'
+		tracking_csv = video.split('.mp4')[0] + '_yolo_tracking_with_direction.csv'
+
 
 		### if column with video name (key) already exists ###
 		query = f"""UPDATE Counts
-			SET yolo = '{average_ant_count}', 
-			yolo_std_dev = '{ant_count_std_dev}'
+			SET yolo_detection_only_csv = '{detections_csv}', 
+			yolo_tracking_with_direction_csv = '{tracking_csv}'
 			WHERE video_id = '{video}';"""
 
+		if os.path.isfile(detections_csv) and os.path.isfile(tracking_csv):
+			database_helper.execute_query(connection, query)
+			connection.commit()
+		else:
+			print (f' Either detection or tracking or both do not exist for {video} ')
+	
 		
 		
-		database_helper.execute_query(connection, query)
-		connection.commit()
-
 
 
 if __name__ == '__main__':
