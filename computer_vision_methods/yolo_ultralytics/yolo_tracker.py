@@ -95,7 +95,8 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 	ant_center = {}
 	## dictionary to keep track of direction, (up or down or same) based on the previous frame 
 	ant_direction = {}
-
+	## dictionary to keep track of angle in degrees for every ant based on position in current and prev frames
+	ant_angle = {}
 	
 	frame_number = 0
 
@@ -104,9 +105,9 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 
 
 	#### create a new csv file to store results of tracked ants only along with their direction of movement
-	csv_file = open(vid_path + '/' + vid_name.split('.')[0] + '_yolo_tracking_with_direction.csv', 'w', newline='')
+	csv_file = open(vid_path + '/' + vid_name.split('.')[0] + '_yolo_tracking_with_direction_and_angle.csv', 'w', newline='')
 	csv_writer = csv.writer(csv_file)
-	csv_writer.writerow(['frame_number', 'ant_id', 'x1', 'y1', 'x2', 'y2', 'direction'])
+	csv_writer.writerow(['frame_number', 'ant_id', 'x1', 'y1', 'x2', 'y2', 'direction', 'angle'])
 
 	
 
@@ -159,6 +160,9 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 					else:
 						## going toward	nest entrance
 						ant_direction[ant_id] = 2
+
+					## tan inverse (y2-y1/x2-x1). We inverted the Ys in order to make 90 degs upward and 270 down (because the frames Y coords go from top left to bottom left)
+					ant_angle[ant_id] = (math.degrees(math.atan2( prev_y-curr_y, curr_x - prev_x)) + 360) % 360
 				
 				# else:
 				# 	## skip ants that don't move > threshold. This is only for only for the saving moving ants only method.
@@ -169,25 +173,24 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 
 			## if ant hasn't changed direction, or has now stopped moving, still draw the old direction it was traveling in
 			if ant_id in ant_direction:
-				if ant_direction[ant_id] == 1:
-					cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
-					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'away'])
+				if ant_direction[ant_id] == 1: 
+					#cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'away', ant_angle[ant_id]])
 					ants_going_away += 1
 				
 				elif ant_direction[ant_id] == 2:
-					cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
-					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'toward'])
+					#cv2.rectangle(frame,(x1,y1),(x2,y2),(0,0,255),2)
+					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'toward', ant_angle[ant_id]])
 					ants_going_towards += 1
 				
-
-				#cv2.putText(frame, str(ant_id), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
+				#cv2.putText(frame, str(round(ant_angle[ant_id])), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
 		
 		total_ants_going_towards.append(ants_going_towards)
 		total_ants_going_away.append(ants_going_away)
 
-		cv2.circle(frame, center_coordinates, 5, (0,0,255), -1)
-		cv2.imshow('Frame',frame)
-		cv2.waitKey(30)
+		#cv2.circle(frame, center_coordinates, 5, (0,0,255), -1)
+		#cv2.imshow('Frame',frame)
+		#cv2.waitKey(30)
 		frame_number += 1
 
 		#vid_out.write(frame)
