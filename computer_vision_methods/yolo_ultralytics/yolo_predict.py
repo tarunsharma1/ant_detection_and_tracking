@@ -11,9 +11,9 @@ import glob
 import os
 
 def process_image(model, img, imgsz=1920):
-	results = model.predict(img, device='cpu', save=False, imgsz=imgsz, workers=1, show_labels=False, conf=0.1, line_width=1, iou=0.7, max_det=1000)  # return a list of Results objects
+	results = model.predict(img, device=0, save=False, imgsz=imgsz, workers=1, show_labels=False, conf=0.1, line_width=1, iou=0.7, max_det=1000, verbose=False)  # return a list of Results objects
 	
-	boxes = results[0].boxes  # Boxes object for bounding box outputs
+	boxes = results[0].boxes.to('cpu')  # Boxes object for bounding box outputs
 	list_of_boxes = boxes.data.numpy()[:,0:5].tolist() ## list of lists [[x1,y1,x2,y2,c], [x1,y1,x2,y2,c], [x1,y1,x2,y2,c]...]
 	return list_of_boxes
 
@@ -27,7 +27,7 @@ def process_video_and_store_csv(model, vid):
 	vid_name = vid.split('/')[-1]
 	vid_location = '/'.join(vid.split('/')[:-1]) + '/'
 
-	csv_file = open(vid_location + vid_name.split('.')[0] + '_yolo_detections.csv', 'w', newline='')
+	csv_file = open(vid_location + vid_name.split('.')[0] + '_yolo_detections_train12.csv', 'w', newline='')
 	csv_writer = csv.writer(csv_file)
 	csv_writer.writerow(['frame_number','x1', 'y1', 'x2', 'y2', 'confidence'])
 
@@ -55,11 +55,17 @@ def process_video_and_store_csv(model, vid):
 
 
 if __name__ == '__main__':
-	model = YOLO("/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt")
+	model = YOLO("/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train12/weights/best.pt")
 	#list_of_boxes = process_image(model,"/media/tarun/Backup5TB/all_ant_data/beer-tree-07-17-2024_to_07-31-2024/2024-07-21_06_01_02/2024-07-21_06_01_02_100.jpg", imgsz=1920)
 
 	## this should be the original gray video
-	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/*')
+	#vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/*')
+	
+	## val set only
+	vid_folders = ['/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00', 
+    '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01',
+    '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
+	
 	for vid_folder in vid_folders:
 		folder = vid_folder
 		name = vid_folder.split('/')[-1]
