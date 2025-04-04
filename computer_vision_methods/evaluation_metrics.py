@@ -51,7 +51,7 @@ def compute_iou(box_1, box_2):
     return iou
 
 
-def compute_counts(preds, gts, iou_thr=0.5, conf_thr=0.5):
+def compute_counts(preds, gts, iou_thr=0.5):
     '''
     This function takes a pair of dictionaries (with our JSON format; see ex.) 
     corresponding to predicted and ground truth bounding boxes for a collection
@@ -133,6 +133,7 @@ def plot_pr_curve(preds_val, gts_val):
         for box in bboxs:
             confidence_thrs.append(box[4])
 
+    
     #confidence_thrs = np.sort(np.array(confidence_thrs))
     confidence_thrs = np.linspace( np.max(confidence_thrs),0, num=50)
 
@@ -142,7 +143,7 @@ def plot_pr_curve(preds_val, gts_val):
     #plt.ylim([0,1])
     plt.xlabel('recall')
     plt.ylabel('precision')
-    plt.title('precision recall curve - ant test set')
+    plt.title('precision recall curve ')
 
     for iou_thresh in np.array([0.5]):
         tp_train = np.zeros(len(confidence_thrs))
@@ -150,7 +151,14 @@ def plot_pr_curve(preds_val, gts_val):
         fn_train = np.zeros(len(confidence_thrs))
 
         for i, conf_thr in enumerate(confidence_thrs):
-            tp_train[i], fp_train[i], fn_train[i] = compute_counts(preds_val, gts_val, iou_thr=iou_thresh, conf_thr=conf_thr)
+            thresholded_preds_val = {}
+            for image in preds_val:
+                thresholded_preds_val[image] = []
+                for points in preds_val[image]:
+                    if points[4] >= conf_thr:
+                        thresholded_preds_val[image].append([points[0], points[1], points[2], points[3], points[4]])
+
+            tp_train[i], fp_train[i], fn_train[i] = compute_counts(thresholded_preds_val, gts_val, iou_thr=iou_thresh)
             
 
         # Plot training set PR curves
@@ -159,12 +167,14 @@ def plot_pr_curve(preds_val, gts_val):
 
         for i in range(0,confidence_thrs.shape[0]):
             print ('###' + str(confidence_thrs[i]) + '###')
+            print (f'TPs : {tp_train[i]}, FPs : {fp_train[i]}, FNs: {fn_train[i]}')
             
             precision = tp_train[i]/(tp_train[i] + fp_train[i])
             recall = tp_train[i]/(tp_train[i] + fn_train[i])
             if precision==0 and recall==0:
                 continue
             print (precision, recall)
+            print (f'F1 score at threshold {confidence_thrs[i]} is {2*precision*recall/(precision + recall)}')
 
             precision_list.append(precision)
             recall_list.append(recall)
@@ -196,6 +206,45 @@ We will then reformat this into the same format as for the GT above and then we 
 
 '''
 
+def filter_detections(detections_dict, mask):
+    """
+    Removes detections that fall inside the masked area.
+    
+    detections: List of bounding boxes in [x, y, x, y] format.
+    mask: Binary mask where 0 means ignore.
+    
+    Returns: Filtered list of detections.
+    """
+    filtered_detections_dict = {}
+
+    for img in detections_dict:
+        filtered_detections_dict[img] = []
+        detections = detections_dict[img]
+
+        #### for ground truth points
+        if len(detections[0]) ==4:
+            for (x1, y1, x2, y2) in detections:
+                # Compute the center of the bounding box
+                center_x, center_y = int((x1 + x2) / 2), int((y1 + y2) / 2)
+                
+                # Check if the center is inside the mask (0 = ignore, 255 = keep)
+                if mask[center_y, center_x] == 255:
+                    filtered_detections_dict[img].append([x1, y1, x2, y2])
+
+        ### for predictions
+        elif len(detections[0]) == 5:
+            for (x1, y1, x2, y2, score) in detections:
+                # Compute the center of the bounding box
+                center_x, center_y = int((x1 + x2) / 2), int((y1 + y2) / 2)
+                
+                # Check if the center is inside the mask (0 = ignore, 255 = keep)
+                if mask[center_y, center_x] == 255:
+                    filtered_detections_dict[img].append([x1, y1, x2, y2, score])
+
+        
+    return filtered_detections_dict
+
+
 
 
 def read_and_convert_ground_truth(annotation_xml_file, folder_where_annotated_video_came_from, box_size):
@@ -203,7 +252,7 @@ def read_and_convert_ground_truth(annotation_xml_file, folder_where_annotated_vi
     gts_boxes_dict = {}
     for f in gts_points_dict.keys():
         gts_boxes_dict[f] = []
-        gts_boxes_dict[f] = converting_points_to_boxes.convert_points_to_boxes(gts_points_dict[f], box_size, 1920, 1088) 
+        gts_boxes_dict[f] = converting_points_to_boxes.convert_points_to_boxes(gts_points_dict[f], box_size, 1920, 1080) 
 
     return gts_boxes_dict
 
@@ -225,10 +274,8 @@ def get_yolo_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_f
     video_detections_csv = folder_where_annotated_video_came_from + label + '_yolo_detections_train12.csv'
     df = pd.read_csv(video_detections_csv)
 
-    #df = df.loc[df.confidence >= 0.362]
-    df = df.loc[df.confidence >= 0.381]
+    #df = df.loc[df.confidence >= 0.381]
 
-    #model = YOLO("/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt")
     
     preds_boxes_dict = {}
     for image in list(gts_boxes_dict.keys()):
@@ -250,9 +297,8 @@ def get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_f
     video_detections_csv = folder_where_annotated_video_came_from + label + '_sahi_detections.csv'
     df = pd.read_csv(video_detections_csv)
 
-    df = df.loc[df.confidence >= 0.359]
+    #df = df.loc[df.confidence >= 0.359]
 
-    #model = YOLO("/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train3/weights/best.pt")
     
     preds_boxes_dict = {}
     for image in list(gts_boxes_dict.keys()):
@@ -271,7 +317,7 @@ def get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_f
 def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label):
     video_detections_csv = '/home/tarun/Desktop/antcam/datasets/herdnet_ants_manual_annotation/val/20250402_HerdNet_results/20250402_detections.csv'
     df = pd.read_csv(video_detections_csv)
-    df = df.loc[df.dscores >= 0.4]
+    #df = df.loc[df.dscores >= 0.4]
     
     preds_boxes_dict = {}
     for image in list(gts_boxes_dict.keys()):
@@ -280,11 +326,18 @@ def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_cam
         frame_number = int(image.split('_')[-1].split('.jpg')[0])
         df_frame = df.loc[df.images == label + '_' + str(frame_number) + '.jpg']
         list_of_points = df_frame[['x', 'y']].values.tolist()
+        scores = df_frame['dscores'].values.tolist()
 
-        list_of_points = converting_points_to_boxes.convert_points_to_boxes(list_of_points, 20, 1920, 1080)
+        list_of_boxes = converting_points_to_boxes.convert_points_to_boxes(list_of_points, 20, 1920, 1080)
+
+        ## add back the confidence scores to the coordinates
+        for i,box in enumerate(list_of_boxes):
+            box.append(scores[i])
+
+
 
         #list_of_points = yolo_predict.process_image(model, image, imgsz=1920)
-        preds_boxes_dict[image] = list_of_points
+        preds_boxes_dict[image] = list_of_boxes
         
     return preds_boxes_dict
 
@@ -293,9 +346,16 @@ def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_cam
 
 
 def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box_size, label):
+    mask = cv2.imread(mask_dict[label], 0)
+    ret, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
+    ## mask is (1920, 1088) for yolo, resize to (1920,1080) for sahi and herdnet
+
+
     ### read and convert ground truth points from cvat into boxes #####
     gts_boxes_dict = read_and_convert_ground_truth(annotation_xml_file, folder_where_annotated_video_came_from, box_size)
-
+    ## apply mask
+    gts_boxes_dict = filter_detections(gts_boxes_dict, mask_bin)
+    
     #### visualize first image to see if boxes are correct and of appropriate size
     #plots_comparing_predictions_and_gt.plot_boxes_on_image(list(gts_boxes_dict.keys())[0], gts_boxes_dict[list(gts_boxes_dict.keys())[0]] , label='2024-08-22_03_01_01_ground_truth')
 
@@ -303,12 +363,13 @@ def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box
     ### get predictions for the images in the ground truth dict #####
     #preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
     #preds_boxes_dict = get_yolo_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
-    #preds_boxes_dict = get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
-    preds_boxes_dict = get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
+    preds_boxes_dict = get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
+    #preds_boxes_dict = get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
     
+    ## apply mask
+    preds_boxes_dict = filter_detections(preds_boxes_dict, mask_bin)
+
     #plots_comparing_predictions_and_gt.plot_boxes_on_image(list(preds_boxes_dict.keys())[0], preds_boxes_dict[list(preds_boxes_dict.keys())[0]], label='2024-08-22_03_01_01_prediction')
-
-
     plots_comparing_predictions_and_gt.plot_ant_counts_gt_vs_preds(gts_boxes_dict, preds_boxes_dict, label)
 
 
@@ -326,6 +387,12 @@ def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box
 
 
 if __name__ == '__main__':
+
+    mask_dict = {'2024-10-09_23_01_00':'/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png', 
+    '2024-10-27_23_01_01': '/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png', 
+    '2024-08-13_11_01_01': '/home/tarun/Downloads/shack-tree-diffuser-08-01-2024_to_08-26-2024.png'
+    }
+
     gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-09_23_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00')
     gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-27_23_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01')
     gts_3, preds_3 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
@@ -351,4 +418,4 @@ if __name__ == '__main__':
     plt.plot([0,50,100,150,200,250], [0,50,100,150,200,250], color='red')
     plt.show()
 
-    ###plot_pr_curve(preds_1, gts_1)
+    plot_pr_curve(preds_1, gts_1)
