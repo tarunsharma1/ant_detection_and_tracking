@@ -8,13 +8,23 @@ frame width or height.
 '''
 def convert_points_to_boxes(list_of_points, box_size, img_w=1920, img_h=1080):
 	list_of_boxes = []
+	with_id = False
+	if len(list_of_points[0]) ==3:
+		with_id = True
+	
 	for point in list_of_points:
-		center_x, center_y = point
+		if with_id:
+			ant_id, center_x, center_y = point
+		else:
+			center_x, center_y = point
 		center_x, center_y = int(center_x), int(center_y)
 		top_left_x = max(center_x - int(box_size/2), 0)
 		top_left_y = max(center_y - int(box_size/2), 0)
 		bottom_right_x = min(center_x + int(box_size/2), img_w) 
 		bottom_right_y = min(center_y + int(box_size/2), img_h)
 
-		list_of_boxes.append([top_left_x, top_left_y, bottom_right_x, bottom_right_y])
+		if with_id:
+			list_of_boxes.append([ant_id, top_left_x, top_left_y, bottom_right_x, bottom_right_y])
+		else:
+			list_of_boxes.append([top_left_x, top_left_y, bottom_right_x, bottom_right_y])
 	return list_of_boxes 

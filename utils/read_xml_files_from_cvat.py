@@ -1,4 +1,5 @@
 import xml.etree.cElementTree as ET
+from collections import defaultdict
 
 '''
 
@@ -46,7 +47,39 @@ def xml_to_dict_cvat_for_images(xml_file, folder_where_annotated_video_came_from
 
 
 
-def xml_to_dict_cvat_for_videos(f):
-	pass
+def xml_to_dict_cvat_for_videos(xml_file):
+	'''
+	returns dictionary where keys are frame numbers and values are a list of lists containing [ant_id, x,y]
+	while annotating on CVAT, if we annotate frames 250-280, the value of "frame" in the field will be 0-30. 
+	
+
+	'''
+	tree = ET.parse(xml_file)
+	root = tree.getroot()
+
+	to_dict = defaultdict(list)
+
+	## root[0] is <version> and root[1] is <meta>. After that each element is an ant track
+	num_ant_ids = len(root) - 2
+	for ant_id_idx in range(2, num_ant_ids+2):
+		ant_id = int(root[ant_id_idx].get('id'))
+
+		for point in root[ant_id_idx]:
+			frame_number = int(point.get('frame'))
+
+			if point.get('outside') == '1':
+				continue
+			point_x, point_y = [int(float(x)) for x in point.get('points').split(',')]
+
+			to_dict[frame_number].append([ant_id, point_x, point_y])
+	return to_dict
+
+
+
+
+
+
+
+
 
 
