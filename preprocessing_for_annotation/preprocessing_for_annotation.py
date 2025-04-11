@@ -4,7 +4,6 @@ from collections import defaultdict
 #from skimage.feature import blob_doh
 from skimage import measure
 import matplotlib.pyplot as plt
-from ultralytics import YOLO
 import os
 import json
 from os import path
