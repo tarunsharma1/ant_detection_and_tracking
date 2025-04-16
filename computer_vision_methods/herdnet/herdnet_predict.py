@@ -44,17 +44,16 @@ import os
 
 def process_image(stitcher, img, transforms, lmds):
 	# img = cv2.imread('/home/tarun/Desktop/antcam/datasets/herdnet_ants_manual_annotation/train/2024-10-04_00_01_06_427.jpg')
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+	#img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+	# img_tensor = transforms(img)
+	# preds = stitcher(img_tensor)
+	# heatmap, clsmap = preds[:,:1,:,:], preds[:,1:,:,:]
+	# ### coords are in loc
+	# counts, locs, labels, scores, dscores = lmds((heatmap, clsmap))
 
-    # img_tensor = transforms(img)
-    # preds = stitcher(img_tensor)
-
-    # heatmap, clsmap = preds[:,:1,:,:], preds[:,1:,:,:]
-    # ### coords are in loc
-    # counts, locs, labels, scores, dscores = lmds((heatmap, clsmap))
-
-	
+	img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 	img_tensor = transforms(img)
+	img_tensor = img_tensor.to('cuda')
 	preds = stitcher(img_tensor)
 	heatmap, clsmap = preds[:,:1,:,:], preds[:,1:,:,:]
 	counts, locs, labels, scores, dscores = lmds((heatmap, clsmap))
@@ -87,7 +86,7 @@ def process_video_and_store_csv(stitcher, vid, transforms, lmds):
 	vid_name = vid.split('/')[-1]
 	vid_location = '/'.join(vid.split('/')[:-1]) + '/'
 
-	csv_file = open(vid_location + vid_name.split('.')[0] + '_herdnet_detections.csv', 'w', newline='')
+	csv_file = open(vid_location + vid_name.split('.')[0] + '_herdnet_detections_testing.csv', 'w', newline='')
 	csv_writer = csv.writer(csv_file)
 	csv_writer.writerow(['frame_number','x1', 'y1', 'x2', 'y2', 'confidence'])
 
@@ -149,8 +148,8 @@ if __name__ == '__main__':
 
 	## val set only
 	vid_folders = ['/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00', 
-    '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01',
-    '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
+	'/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01', 
+	'/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
 	
 	for vid_folder in vid_folders:
 		folder = vid_folder

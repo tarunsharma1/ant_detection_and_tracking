@@ -26,11 +26,11 @@ image_width, image_height = 1920,1080
 
 
 def convert_prediction_csv_to_trackeval_txt(folder_where_annotated_video_came_from, box_size, label, start_frame):
-	df = pd.read_csv(folder_where_annotated_video_came_from + label + '_yolo_tracking_with_direction.csv')
+	df = pd.read_csv(folder_where_annotated_video_came_from + label + '_herdnet_tracking_with_direction_and_angle.csv')
 	## only keep the ones we have annotations for
 	df = df.loc[(df.frame_number >= start_frame) & (df.frame_number < start_frame+30)]
 
-	f = open('/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT/data/' + label + '.txt', 'w')
+	f = open('/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT-herdnet/data/' + label + '.txt', 'w')
 
 	
 	for index, row in df.iterrows():

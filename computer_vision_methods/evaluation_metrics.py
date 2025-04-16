@@ -334,9 +334,6 @@ def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_cam
         for i,box in enumerate(list_of_boxes):
             box.append(scores[i])
 
-
-
-        #list_of_points = yolo_predict.process_image(model, image, imgsz=1920)
         preds_boxes_dict[image] = list_of_boxes
         
     return preds_boxes_dict
@@ -363,8 +360,8 @@ def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box
     ### get predictions for the images in the ground truth dict #####
     #preds_boxes_dict = get_blob_detection_preds(gts_boxes_dict)
     #preds_boxes_dict = get_yolo_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
-    preds_boxes_dict = get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
-    #preds_boxes_dict = get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
+    #preds_boxes_dict = get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
+    preds_boxes_dict = get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label)
     
     ## apply mask
     preds_boxes_dict = filter_detections(preds_boxes_dict, mask_bin)
