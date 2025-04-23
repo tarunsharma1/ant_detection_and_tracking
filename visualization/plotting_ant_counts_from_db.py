@@ -40,14 +40,14 @@ def plot_data_for_a_day_range(start_day, number_of_days=0, site_id = 1):
 	temperature = df_per_site_per_day['temperature']
 	lux = df_per_site_per_day['LUX']
 	
-	yolo_detection_only_csv = df_per_site_per_day['yolo_detection_only_csv']
-	yolo_tracking_with_direction_csv = df_per_site_per_day['yolo_tracking_with_direction_csv']
+	detection_only_csv = df_per_site_per_day['yolo_detection_only_csv']
+	tracking_with_direction_csv = df_per_site_per_day['yolo_tracking_with_direction_csv']
 
 	ant_counts_away = []
 	ant_counts_toward = []
 	ant_counts = [] ## total
 	
-	for file in yolo_tracking_with_direction_csv.to_list():
+	for file in tracking_with_direction_csv.to_list():
 		data = pd.read_csv(file)
 		## average total ant count is total number of boxes in the video / number of frames
 		ant_counts.append(len(data) / data['frame_number'].nunique())
@@ -93,14 +93,14 @@ def plot_data_for_a_day_range(start_day, number_of_days=0, site_id = 1):
 		lux = df_per_site_per_day['LUX']
 		
 
-		yolo_detection_only_csv = df_per_site_per_day['yolo_detection_only_csv']
-		yolo_tracking_with_direction_csv = df_per_site_per_day['yolo_tracking_with_direction_csv']
+		detection_only_csv = df_per_site_per_day['yolo_detection_only_csv']
+		tracking_with_direction_csv = df_per_site_per_day['yolo_tracking_with_direction_csv']
 
 		ant_counts_away = []
 		ant_counts_toward = []
 		ant_counts = [] ## total
 		
-		for file in yolo_tracking_with_direction_csv.to_list():
+		for file in tracking_with_direction_csv.to_list():
 			data = pd.read_csv(file)
 			## average total ant count is total number of boxes in the video / number of frames
 			if len(data)!=0:
@@ -161,13 +161,12 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 			hour = video['time_stamp'].hour
 			temperature = video['temperature']
 			lux = video['LUX']
-			
 
-			yolo_detection_only_csv = video['yolo_detection_only_csv']
-			yolo_tracking_with_direction_csv = video['yolo_tracking_with_direction_csv']
+			detection_only_csv = video['herdnet_detection_only_csv']
+			tracking_with_direction_csv = video['herdnet_tracking_with_direction_csv']
 
-			print (f' reading {yolo_tracking_with_direction_csv}')
-			data = pd.read_csv(yolo_tracking_with_direction_csv)
+			print (f' reading {tracking_with_direction_csv}')
+			data = pd.read_csv(tracking_with_direction_csv)
 			
 			### away
 			data_away = data[data.direction == 'away']
@@ -227,7 +226,7 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_toward, yerr=[y_toward_err_lower, y_toward_err_upper], fmt=".", c='r', ecolor='k', elinewidth=1, label='toward')
 	
 	axes.legend()
-	plt.title('Shack tree 08-27-2024 to 09-18-2024')
+	plt.title('Rain tree 11-15-2024 to 12-06-2024')
 	plt.xticks(range(24))
 	plt.xlabel('Hour')
 	plt.ylabel('Mean Ant count')
@@ -252,11 +251,11 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 			lux = video['LUX']
 			
 
-			yolo_detection_only_csv = video['yolo_detection_only_csv']
-			yolo_tracking_with_direction_csv = video['yolo_tracking_with_direction_csv']
+			detection_only_csv = video['yolo_detection_only_csv']
+			tracking_with_direction_csv = video['yolo_tracking_with_direction_csv']
 
-			print (f' reading {yolo_tracking_with_direction_csv}')
-			data = pd.read_csv(yolo_tracking_with_direction_csv)
+			print (f' reading {tracking_with_direction_csv}')
+			data = pd.read_csv(tracking_with_direction_csv)
 			data["x_center"] = (data["x1"] + data["x2"]) / 2
 			data["y_center"] = (data["y1"] + data["y2"]) / 2
 			
@@ -386,8 +385,8 @@ def plot_ant_counts_vs_variables_scatter():
 connection = database_helper.create_connection("localhost", "root", "master", "ant_colony_db")
 cursor = connection.cursor()
 query = f"""
-	select Counts.video_id, Counts.yolo_detection_only_csv, Counts.yolo_tracking_with_direction_csv, Videos.temperature, 
-	Videos.humidity, Videos.LUX, Videos.time_stamp, Videos.site_id from Counts INNER JOIN Videos on Counts.video_id=Videos.video_id;
+	select Counts.video_id, Counts.yolo_detection_only_csv, Counts.yolo_tracking_with_direction_csv, Counts.herdnet_detection_only_csv, Counts.herdnet_tracking_with_direction_csv,
+	Videos.temperature, Videos.humidity, Videos.LUX, Videos.time_stamp, Videos.site_id from Counts INNER JOIN Videos on Counts.video_id=Videos.video_id;
 	"""
 cursor.execute(query)
 table_rows = cursor.fetchall()
@@ -415,8 +414,8 @@ sites = [3]
 for site in sites:
 	#plot_data_for_a_day_range(days_period, 0, site)
 	#plot_data_for_a_day_range(days_period, 10, site)
-	#scatter_plot_for_day_range(days_period, 23, site)
-	scatter_plot_encounters_for_day_range(days_period, 23, site)
+	scatter_plot_for_day_range(days_period, 22, site)
+	#scatter_plot_encounters_for_day_range(days_period, 23, site)
 
 #plot_data_by_hour()
 

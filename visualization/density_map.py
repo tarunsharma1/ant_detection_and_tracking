@@ -14,7 +14,7 @@ def plot_and_save_density_map(csv_file):
 	## Load per-frame detections
 	df = pd.read_csv(csv_file)
 	
-	#df = df.loc[df.direction == 'toward']
+	df = df.loc[df.direction == 'toward']
 	if len(df) == 0:
 		return
 
@@ -32,7 +32,7 @@ def plot_and_save_density_map(csv_file):
 
 	bin_size = 5  # Adjust based on video resolution
 	x_min, x_max = 0, 1920
-	y_min, y_max = -1088, 0
+	y_min, y_max = -1080, 0
 
 	# Define grid
 	x_bins = np.arange(x_min, x_max, bin_size)
@@ -77,9 +77,9 @@ def plot_and_save_density_map(csv_file):
 	# Set labels and title
 	ax.set_xlabel('X')
 	ax.set_ylabel('Y')
-	ax.set_title(vid_name.split('_yolo_tracking_with_direction')[0] + '_toward')
+	ax.set_title(vid_name.split('_herdnet_tracking_with_direction')[0] + '_toward')
 	#plt.show()
-	plt.savefig('/home/tarun/Desktop/ant_density_plots/' + vid_name + '_both.png' )
+	plt.savefig('/home/tarun/Desktop/ant_density_plots_herdnet/' + vid_name + '_toward.png' )
 	plt.close()
 
 
@@ -87,13 +87,13 @@ def plot_and_save_density_map(csv_file):
 thresholds = []
 
 
-vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/*')
+vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
 
-vid_folders = ['/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-04_00_01_16']
+#vid_folders = ['/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-04_00_01_16']
 for idx,vid_folder in enumerate(vid_folders):
 	name = vid_folder.split('/')[-1]
-	#csv_file = vid_folder + '/' + name + '_yolo_detections.csv'
-	csv_file = vid_folder + '/' + name + '_yolo_tracking_with_direction.csv'
+	#csv_file = vid_folder + '/' + name + '_yolo_tracking_with_direction.csv'
+	csv_file = vid_folder + '/' + name + '_herdnet_tracking_with_direction_and_angle_7_1_0.1.csv'
 	
 	if os.path.exists(csv_file):
 		print (f'plotting density map for {csv_file}')
