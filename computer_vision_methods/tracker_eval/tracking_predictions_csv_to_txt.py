@@ -26,25 +26,35 @@ image_width, image_height = 1920,1080
 
 
 def convert_prediction_csv_to_trackeval_txt(folder_where_annotated_video_came_from, box_size, label, start_frame):
-	df = pd.read_csv(folder_where_annotated_video_came_from + label + '_herdnet_tracking_with_direction_and_angle.csv')
-	## only keep the ones we have annotations for
-	df = df.loc[(df.frame_number >= start_frame) & (df.frame_number < start_frame+30)]
-
-	f = open('/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT-herdnet/data/' + label + '.txt', 'w')
-
 	
-	for index, row in df.iterrows():
-		## convert start_frame to start_frame+30 to 1-30
-		frame = row['frame_number'] - (start_frame-1)
-		ant_id = row['ant_id']
-		x1 = row['x1']
-		y1 = row['y1']
-		w = row['x2'] - row['x1']
-		h = row['y2'] - row['y1']
+	sort_params = [(10,1,0.1), (7,1,0.1), (7,2,0.1)]
 
-		f.write(str(frame) + ',' + str(ant_id) + ',' + str(x1) + ',' + str(y1) + ',' + str(w) + ',' + str(h) + ',-1,-1,-1,-1' + '\n')
+	for (max_age, min_hits, iou_threshold) in sort_params:
 
-	f.close()
+		df = pd.read_csv(folder_where_annotated_video_came_from + label + '_herdnet_tracking_with_direction_and_angle_' + str(max_age)+'_'+ str(min_hits) + '_' + str(iou_threshold) + '.csv')
+		## only keep the ones we have annotations for
+		df = df.loc[(df.frame_number >= start_frame) & (df.frame_number < start_frame+30)]
+
+		folder_path = '/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT-'+ str(max_age) + '_' + str(min_hits) + '_' + str(iou_threshold)
+		if not os.path.exists(folder_path):
+  			os.makedirs(folder_path)
+  			os.makedirs(folder_path + '/data')
+
+		f = open('/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT-'+ str(max_age) + '_' + str(min_hits) + '_' + str(iou_threshold) + '/data/' + label + '.txt', 'w')
+
+		
+		for index, row in df.iterrows():
+			## convert start_frame to start_frame+30 to [1, 30]
+			frame = row['frame_number'] - (start_frame-1)
+			ant_id = row['ant_id']
+			x1 = row['x1']
+			y1 = row['y1']
+			w = row['x2'] - row['x1']
+			h = row['y2'] - row['y1']
+
+			f.write(str(frame) + ',' + str(ant_id) + ',' + str(x1) + ',' + str(y1) + ',' + str(w) + ',' + str(h) + ',-1,-1,-1,-1' + '\n')
+
+		f.close()
 
 
 

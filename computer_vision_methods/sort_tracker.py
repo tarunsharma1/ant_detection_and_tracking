@@ -72,21 +72,23 @@ def distance_from_center(x,y):
 
 
 
-def track_video(video_detections_csv, vid_path, vid_name, video):
+def track_video(video_detections_csv, vid_path, vid_name, video, max_age, min_hits, iou_threshold):
 	
-	mot_tracker = Sort(max_age=5, min_hits=2, iou_threshold=0.1)
+	#mot_tracker = Sort(max_age=5, min_hits=2, iou_threshold=0.1)
+	
+	mot_tracker = Sort(max_age=max_age, min_hits=min_hits, iou_threshold=iou_threshold)
 
 	### read precomputed detections
 
 	df = pd.read_csv(video_detections_csv)
 	#df = df.loc[df.confidence >= 0.362]
-	df = df.loc[df.confidence >= 0.343] ### <--- 0.343 is the threshold with the best F1 score for herdnet
+	df = df.loc[df.confidence >= 0.327] ### <--- 0.327 is the threshold with the best F1 score for herdnet
 
 
 	cap = cv2.VideoCapture(video)
 
 
-	#vid_out = cv2.VideoWriter('/home/tarun/Desktop/plots_for_committee_meeting/beer-away-toward-2024-08-03_20_01_01.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1088))
+	#vid_out = cv2.VideoWriter('/home/tarun/Desktop/plots_for_committee_meeting/rain-away-toward-2024-10-09_23_01_00_with_id_new.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 20.0, (1920,1080))
 
 	dist_moved_all_ants = []
 	ant_dict_for_interpolation = {}
@@ -105,7 +107,7 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 
 
 	#### create a new csv file to store results of tracked ants only along with their direction of movement
-	csv_file = open(vid_path + '/' + vid_name.split('.')[0] + '_herdnet_tracking_with_direction_and_angle.csv', 'w', newline='')
+	csv_file = open(vid_path + '/' + vid_name.split('.')[0] + '_herdnet_tracking_with_direction_and_angle_' + str(max_age)+'_'+ str(min_hits) + '_' + str(iou_threshold) + '.csv', 'w', newline='')
 	csv_writer = csv.writer(csv_file)
 	csv_writer.writerow(['frame_number', 'ant_id', 'x1', 'y1', 'x2', 'y2', 'direction', 'angle'])
 
@@ -123,6 +125,8 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 		## resize to the shape that yolo is detecting on 
 		#frame = cv2.resize(frame, (1920, 1088)) <-- for yolo
 		frame = cv2.resize(frame, (1920, 1080))
+		#frame = cv2.bitwise_and(frame,frame, mask = mask_bin)
+
 
 		
 		df_frame = df.loc[df.frame_number == frame_number]
@@ -184,8 +188,9 @@ def track_video(video_detections_csv, vid_path, vid_name, video):
 					csv_writer.writerow([frame_number, ant_id, x1, y1, x2, y2, 'toward', ant_angle[ant_id]])
 					ants_going_towards += 1
 				
-				#cv2.putText(frame, str(round(ant_angle[ant_id])), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (36,255,12), 2)
-		
+				#cv2.putText(frame, str(round(ant_angle[ant_id])), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 2)
+				#cv2.putText(frame, str(int(ant_id)), (int((x1+x2)/2), int((y1+y2)/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 2)
+				
 		total_ants_going_towards.append(ants_going_towards)
 		total_ants_going_away.append(ants_going_away)
 
@@ -210,12 +215,12 @@ if __name__ == '__main__':
 
 	direction_threshold = 2
 
-	#vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/*')
-	vid_folders = ['/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-11-15-2024_to_12-06-2024/*')
+	#vid_folders = ['/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00']
 
 	### shack ############
-	mask = cv2.imread('/home/tarun/Downloads/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',0)
-	center_coordinates = (960, 400)
+	#mask = cv2.imread('/home/tarun/Downloads/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',0)
+	#center_coordinates = (960, 400)
 
 	#mask = cv2.imread('/home/tarun/Downloads/shack-tree-diffuser-08-26-2024_to_09-18-2024.png',0)
 	#center_coordinates = (1300, 400)
@@ -226,8 +231,8 @@ if __name__ == '__main__':
 	#center_coordinates = (1050, 600)
 
 	### rain ##############
-	#mask = cv2.imread('/home/tarun/Desktop/masks/rain-tree-11-15-2024_to_12-06-2024.png', 0)
-	#center_coordinates = (1050, 450)
+	mask = cv2.imread('/home/tarun/Desktop/masks/rain-tree-11-15-2024_to_12-06-2024.png', 0)
+	center_coordinates = (1050, 450)
 
 	### rain ##############
 	#mask = cv2.imread('/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png', 0)
@@ -243,7 +248,7 @@ if __name__ == '__main__':
 	#center_coordinates = (1120, 600)
 
 
-
+	mask = cv2.resize(mask, (1920, 1080))
 	ret, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
 
 	for vid_folder in vid_folders:
@@ -253,10 +258,22 @@ if __name__ == '__main__':
 		
 		#video_detections_csv = vid_path + '/' + vid_name + '_yolo_detections.csv'
 		video_detections_csv = vid_path + '/' + vid_name + '_herdnet_detections.csv'
-		
 		if os.path.exists(video_detections_csv):
 			print ('## processing ' + video)
-			track_video(video_detections_csv, vid_path, vid_name, video)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 5, 2, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 10, 2, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 15, 2, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 5, 4, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 10, 4, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 15, 4, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 1, 3, 0.3)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 1, 3, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 10, 1, 0.1)
+			# track_video(video_detections_csv, vid_path, vid_name, video, 7, 2, 0.1)
+			track_video(video_detections_csv, vid_path, vid_name, video, 7, 1, 0.1)
+			
+
+
 		
 
 
