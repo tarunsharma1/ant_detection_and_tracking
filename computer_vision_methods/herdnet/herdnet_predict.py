@@ -70,6 +70,7 @@ def process_image(stitcher, img, transforms, lmds):
 
 		box = [x1, y1, x2, y2, conf]
 
+		
 		list_of_boxes.append(box)
 
 	return list_of_boxes
@@ -86,7 +87,7 @@ def process_video_and_store_csv(stitcher, vid, transforms, lmds):
 	vid_name = vid.split('/')[-1]
 	vid_location = '/'.join(vid.split('/')[:-1]) + '/'
 
-	csv_file = open(vid_location + vid_name.split('.')[0] + '_herdnet_detections_testing.csv', 'w', newline='')
+	csv_file = open(vid_location + vid_name.split('.')[0] + '_herdnet_detections.csv', 'w', newline='')
 	csv_writer = csv.writer(csv_file)
 	csv_writer.writerow(['frame_number','x1', 'y1', 'x2', 'y2', 'confidence'])
 
@@ -147,10 +148,15 @@ if __name__ == '__main__':
 	lmds = HerdNetLMDS(up=False, **lmds_kwargs)
 
 	## val set only
-	vid_folders = ['/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00', 
-	'/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01', 
-	'/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
+	#vid_folders = ['/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00',
+	#'/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01', 
+	#'/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
 	
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
+	vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/*'))
+	vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-11-15-2024_to_12-06-2024/*'))
+
+
 	for vid_folder in vid_folders:
 		folder = vid_folder
 		name = vid_folder.split('/')[-1]

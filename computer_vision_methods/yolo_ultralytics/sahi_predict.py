@@ -139,13 +139,14 @@ def process_video_and_store_csv(model, vid, start_frame, end_frame):
 
 if __name__ == "__main__":
 
-    model_path = "/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train2_blue_patches/weights/best.pt"
+    #model_path = "/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train2_blue_patches/weights/best.pt"
+    model_path = "/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics/runs/detect/train12/weights/best.pt"
 
     model = AutoDetectionModel.from_pretrained(
     model_type="yolov8",
     model_path=model_path,
     confidence_threshold=0.1,
-    device="cpu")
+    device="cuda")
 
     
 

@@ -135,7 +135,7 @@ def count_ants_using_blob_detection(video, subset_of_frames=None, params=None):
 def insert_count_into_db():
 	### only get the videos which have not been counted yet
 	query = f"""
-	SELECT video_id from Counts WHERE yolo_detection_only_csv is NULL;
+	SELECT video_id from Counts WHERE herdnet_detection_only_csv is NULL;
 	"""
 	videos = []
 	videos_db = database_helper.execute_query(connection, query)
@@ -168,14 +168,14 @@ def insert_count_into_db():
 		
 		
 		#### check for csv file and insert the path to the csv file containing pre-run detections #######
-		detections_csv = video.split('.mp4')[0] + '_yolo_detections.csv'
-		tracking_csv = video.split('.mp4')[0] + '_yolo_tracking_with_direction.csv'
+		detections_csv = video.split('.mp4')[0] + '_herdnet_detections.csv'
+		tracking_csv = video.split('.mp4')[0] + '_herdnet_tracking_with_direction_and_angle_7_1_0.1.csv'
 
 
 		### if column with video name (key) already exists ###
 		query = f"""UPDATE Counts
-			SET yolo_detection_only_csv = '{detections_csv}', 
-			yolo_tracking_with_direction_csv = '{tracking_csv}'
+			SET herdnet_detection_only_csv = '{detections_csv}', 
+			herdnet_tracking_with_direction_csv = '{tracking_csv}'
 			WHERE video_id = '{video}';"""
 
 		if os.path.isfile(detections_csv) and os.path.isfile(tracking_csv):

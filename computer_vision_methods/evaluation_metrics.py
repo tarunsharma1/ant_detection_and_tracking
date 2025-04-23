@@ -3,7 +3,6 @@ sys.path.append('/home/tarun/Desktop/ant_detection_and_tracking/')
 sys.path.append('/home/tarun/Desktop/ant_detection_and_tracking/utils')
 sys.path.append('/home/tarun/Desktop/ant_detection_and_tracking/preprocessing_for_annotation')
 sys.path.append('/home/tarun/Desktop/ant_detection_and_tracking/visualization')
-sys.path.append('/home/tarun/Desktop/ant_detection_and_tracking/computer_vision_methods/yolo_ultralytics')
 
 import json
 import matplotlib.pyplot as plt
@@ -12,10 +11,7 @@ import copy
 import read_xml_files_from_cvat, converting_points_to_boxes
 import preprocessing_for_annotation
 import plots_comparing_predictions_and_gt
-from ultralytics import YOLO
 import cv2
-import yolo_predict
-import sahi_predict
 import pandas as pd
 
 def compute_iou(box_1, box_2):
@@ -140,7 +136,7 @@ def plot_pr_curve(preds_val, gts_val):
 
 
     plt.xlim([0,1])
-    #plt.ylim([0,1])
+    plt.ylim([0,1])
     plt.xlabel('recall')
     plt.ylabel('precision')
     plt.title('precision recall curve ')
@@ -182,7 +178,7 @@ def plot_pr_curve(preds_val, gts_val):
         #print (iou_thresh)
         #print (recall_list, precision_list)
         #import ipdb;ipdb.set_trace()
-        plt.plot(np.array(recall_list), np.array(precision_list),c='tab:blue', label=' model trained on courtyard + ant nest data')
+        plt.plot(np.array(recall_list), np.array(precision_list),c='tab:red', label='herdnet max F1 score 0.782 at threshold 0.327')
 
     plt.legend()
     plt.show()
@@ -263,7 +259,7 @@ def get_blob_detection_preds(gts_boxes_dict):
         preds_boxes_dict[image] = []
         frame = cv2.imread(image)
         list_of_points = preprocessing_for_annotation.blob_detection(frame)
-        preds_boxes_dict[image] = converting_points_to_boxes.convert_points_to_boxes(list_of_points, 20, 1920,1088)
+        preds_boxes_dict[image] = converting_points_to_boxes.convert_points_to_boxes(list_of_points, 20, 1920,1080)
 
     return preds_boxes_dict
 
@@ -313,6 +309,31 @@ def get_sahi_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_f
     
     return preds_boxes_dict
 
+### this is for herdnet predictions on val set by running my herdnet_predict.py script
+def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label):
+    ''' read detections from the precomputed csvs that we have run prediction on already '''
+
+    video_detections_csv = folder_where_annotated_video_came_from + label + '_herdnet_detections.csv'
+    df = pd.read_csv(video_detections_csv)
+
+    #df = df.loc[df.confidence >= 0.327]
+
+    
+    preds_boxes_dict = {}
+    for image in list(gts_boxes_dict.keys()):
+        preds_boxes_dict[image] = []
+        
+        frame_number = int(image.split('_')[-1].split('.jpg')[0])
+        df_frame = df.loc[df.frame_number == frame_number]
+        list_of_points = df_frame[['x1', 'y1', 'x2', 'y2', 'confidence']].values.tolist()
+
+        #list_of_points = yolo_predict.process_image(model, image, imgsz=1920)
+        preds_boxes_dict[image] = list_of_points
+    
+    return preds_boxes_dict
+
+'''
+This next method is to evaluate herdnet predictions as spit out by running the training script 
 
 def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_came_from, label):
     video_detections_csv = '/home/tarun/Desktop/antcam/datasets/herdnet_ants_manual_annotation/val/20250402_HerdNet_results/20250402_detections.csv'
@@ -337,7 +358,7 @@ def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_cam
         preds_boxes_dict[image] = list_of_boxes
         
     return preds_boxes_dict
-
+'''
     
 
 
