@@ -63,7 +63,9 @@ def plot_and_save_circular_hist(csv_file):
 def calculate_angle_hist_vector(csv_file, direction, correction=False):
 	df = pd.read_csv(csv_file)
 	
-	df = df.loc[df.direction == direction]
+	if direction == 'away' or direction == 'toward':
+		df = df.loc[df.direction == direction]
+	
 	if len(df) == 0:
 		return
 
@@ -99,7 +101,7 @@ def euclidean_distance_between_away_and_toward(csv_file):
 	away_vector, away_bin_edges = calculate_angle_hist_vector(csv_file, 'away')
 	toward_vector, toward_bin_edges = calculate_angle_hist_vector(csv_file, 'toward', correction=True)
 
-	total_ant_vector = (away_vector + toward_vector)/2
+	#total_ant_vector = (away_vector + toward_vector)/2
 
 
 	## calculate the similarity between the normalized histograms
@@ -108,7 +110,7 @@ def euclidean_distance_between_away_and_toward(csv_file):
 
 	#score = cv2.compareHist(toward_vector, away_vector, cv2.HISTCMP_CORREL)
 	
-	score, chi2_p = chisquare(away_vector, toward_vector)
+	#score, chi2_p = chisquare(away_vector, toward_vector)
 	#score = entropy(toward_vector, away_vector)
 	#print(f"Chi-Square Statistic: {score}, p-value: {chi2_p}")
 
@@ -134,6 +136,16 @@ def euclidean_distance_between_away_and_toward(csv_file):
 	return l2_distance
 
 
+def euclidean_distance_between_two_csvs(csv_file1, csv_file2):
+	'''
+		Euclidean distance or some score of histogram similarity for all ants together between two tracking files. I'm not going to do the angle adjustment between away and toward for this.
+	'''
+	hist1, _ = calculate_angle_hist_vector(csv_file1, 'both')
+	hist2, _ = calculate_angle_hist_vector(csv_file2, 'both')
+
+	l1_distance = np.sum(np.abs(hist1 - hist2))
+
+	return l1_distance
 
 
 
@@ -141,25 +153,22 @@ def euclidean_distance_between_away_and_toward(csv_file):
 
 
 
+if __name__ == '__main__':
 
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
 
-
-
-
-vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
-
-plot_corrs = []
-for idx,vid_folder in enumerate(vid_folders):
-	name = vid_folder.split('/')[-1]
-	#csv_file = vid_folder + '/' + name + '_yolo_detections.csv'
-	csv_file = vid_folder + '/' + name + '_herdnet_tracking_with_direction_and_angle_7_1_0.1.csv'
-	
-	if os.path.exists(csv_file):
-		print (f'plotting density map for {csv_file}')
-		#plot_and_save_circular_hist(csv_file)
+	plot_corrs = []
+	for idx,vid_folder in enumerate(vid_folders):
+		name = vid_folder.split('/')[-1]
+		#csv_file = vid_folder + '/' + name + '_yolo_detections.csv'
+		csv_file = vid_folder + '/' + name + '_herdnet_tracking_with_direction_and_angle_7_1_0.1.csv'
 		
-		plot_corrs.append(euclidean_distance_between_away_and_toward(csv_file))
+		if os.path.exists(csv_file):
+			print (f'plotting density map for {csv_file}')
+			#plot_and_save_circular_hist(csv_file)
+			
+			plot_corrs.append(euclidean_distance_between_away_and_toward(csv_file))
 
-plt.plot(plot_corrs)
-plt.show()
+	plt.plot(plot_corrs)
+	plt.show()
 		
