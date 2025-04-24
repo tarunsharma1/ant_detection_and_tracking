@@ -7,6 +7,8 @@ import numpy as np
 from collections import defaultdict
 import itertools
 from encounters import count_encounters_per_frame
+from scipy import stats
+
 """
 
 code to read counts and std dev from Counts table in the DB and plot ant counts against time per day, 
@@ -209,6 +211,23 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 
 		x_list.append([h]*len(away_values))
 
+		## also perform statistic test (t-test) between the away and toward for every hour
+		t_statistic, p_value = stats.ttest_ind(away_values, toward_values)
+		print (f'hour {h} t_stat {t_statistic} p value {p_value}')
+
+		stat, p = stats.shapiro(away_values)
+		if p <= 0.05:
+			print(f'Shapiro test away data is not normally distributed for hour {h}')
+			print (f'man whitney U : {stats.mannwhitneyu(away_values, toward_values)}')
+
+		stat, p = stats.shapiro(toward_values)
+		if p <= 0.05:
+			print(f'Shapiro test toward data is not normally distributed for hour {h}')
+			print (f'man whitney U : {stats.mannwhitneyu(away_values, toward_values)}')
+		    
+		
+
+
 	
 	x_axis = list(itertools.chain.from_iterable(x_list))
 
@@ -402,19 +421,19 @@ df["time_stamp"] = pd.to_datetime(df["time_stamp"])
 ## Note : we can also do this per hour using hour = pd.Period('2022-02-09 16:00:00', freq='H')
 
 #days_period = pd.Period(df.time_stamp.min(), freq='D')
-days_period = pd.Period('2024-11-15', freq='D')
+days_period = pd.Period('2024-10-22', freq='D')
 
 ## get the sites where we have data for the period we are in interested in
 sites = set(df.loc[(df.time_stamp.dt.day == days_period.start_time.day) & (df.time_stamp.dt.month == days_period.start_time.month)].site_id)
 sites = list(sites)
-sites = [3]
+sites = [1]
 
 #plot_ant_counts_vs_variables_scatter()
 
 for site in sites:
 	#plot_data_for_a_day_range(days_period, 0, site)
 	#plot_data_for_a_day_range(days_period, 10, site)
-	scatter_plot_for_day_range(days_period, 22, site)
+	scatter_plot_for_day_range(days_period, 12, site)
 	#scatter_plot_encounters_for_day_range(days_period, 23, site)
 
 #plot_data_by_hour()
