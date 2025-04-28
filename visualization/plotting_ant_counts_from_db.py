@@ -8,6 +8,10 @@ from collections import defaultdict
 import itertools
 from encounters import count_encounters_per_frame
 from scipy import stats
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+import seaborn as sns
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 """
 
@@ -33,125 +37,35 @@ def confidence_interval(data):
 	return conf_interval[0], conf_interval[1]
 
 
-def plot_data_for_a_day_range(start_day, number_of_days=0, site_id = 1):
-	df_per_site = df.loc[df.site_id == site_id]
-	df_per_site_per_day = df_per_site.loc[(df_per_site.time_stamp.dt.day == start_day.start_time.day) & (df_per_site.time_stamp.dt.month == start_day.start_time.month)]
-	
 
-	hours = df_per_site_per_day['time_stamp'].dt.hour
-	temperature = df_per_site_per_day['temperature']
-	lux = df_per_site_per_day['LUX']
-	
-	detection_only_csv = df_per_site_per_day['yolo_detection_only_csv']
-	tracking_with_direction_csv = df_per_site_per_day['yolo_tracking_with_direction_csv']
 
-	ant_counts_away = []
-	ant_counts_toward = []
-	ant_counts = [] ## total
-	
-	for file in tracking_with_direction_csv.to_list():
-		data = pd.read_csv(file)
-		## average total ant count is total number of boxes in the video / number of frames
-		ant_counts.append(len(data) / data['frame_number'].nunique())
+def statistic_test_for_differences(away_values, toward_values, hour):
+	## also perform statistic test (t-test) between the away and toward for every hour
+	t_statistic, p_value = stats.ttest_ind(away_values, toward_values)
+	print (f'hour {hour} t_stat {t_statistic} p value {p_value}')
 
-		### away
-		data_away = data[data.direction == 'away']
-		ant_counts_away.append(len(data_away) / data_away['frame_number'].nunique())
+	stat, p = stats.shapiro(away_values)
+	if p <= 0.05:
+		print(f'Shapiro test away data is not normally distributed for hour {hour}')
+		print (f'man whitney U : {stats.mannwhitneyu(away_values, toward_values)}')
 
-		### toward
-		data_toward = data[data.direction == 'toward']
-		ant_counts_toward.append(len(data_toward) / data_toward['frame_number'].nunique())
+	stat, p = stats.shapiro(toward_values)
+	if p <= 0.05:
+		print(f'Shapiro test toward data is not normally distributed for hour {hour}')
+		print (f'man whitney U : {stats.mannwhitneyu(away_values, toward_values)}')
 
 
 
-	## one ant count per video
-	ant_counts, ant_counts_away, ant_counts_toward = np.array(ant_counts), np.array(ant_counts_away), np.array(ant_counts_toward)
-	ant_std_dev, ant_std_dev_away, ant_std_dev_toward = np.zeros_like(ant_counts), np.zeros_like(ant_counts_away), np.zeros_like(ant_counts_toward)
-
-	fig, axes = plt.subplots(2, 1, figsize=(8, 10))
-	fig.suptitle('Data for ' + str(number_of_days+1) + ' day(s) site : ' + site_mapping[site_id])
-
-	alpha = 0.4
-
-	if number_of_days == 0:
-		## just one trace so plotting with std dev 
-		alpha = 1
-		axes[0].errorbar(hours, ant_counts, yerr=ant_std_dev , label=str(start_day.start_time.month) + '-' +str(start_day.start_time.day), color='b', alpha=alpha)
-		axes[0].errorbar(hours, ant_counts_away, yerr=ant_std_dev_away , label=str(start_day.start_time.month) + '-' +str(start_day.start_time.day), color='g', alpha=alpha)
-		axes[0].errorbar(hours, ant_counts_toward, yerr=ant_std_dev_toward , label=str(start_day.start_time.month) + '-' +str(start_day.start_time.day), color='r', alpha=alpha)
-
-	else:
-		## no std dev in these plots because then it would get too messy
-		axes[0].errorbar(hours, ant_counts, label=str(start_day.start_time.month) + '-' +str(start_day.start_time.day), color='b', alpha=alpha)
-	
-	axes[1].plot(hours, temperature, label=str(start_day.start_time.month) + '-' + str(start_day.start_time.day), color='r', alpha=alpha)
-
-	### for subsequent days if any
-	for i in range(0, number_of_days):
-		df_per_site_per_day = df_per_site.loc[(df_per_site.time_stamp.dt.day == (start_day+i).start_time.day) & (df_per_site.time_stamp.dt.month == (start_day+i).start_time.month)]
-
-		hours = df_per_site_per_day['time_stamp'].dt.hour
-		temperature = df_per_site_per_day['temperature']
-		lux = df_per_site_per_day['LUX']
-		
-
-		detection_only_csv = df_per_site_per_day['yolo_detection_only_csv']
-		tracking_with_direction_csv = df_per_site_per_day['yolo_tracking_with_direction_csv']
-
-		ant_counts_away = []
-		ant_counts_toward = []
-		ant_counts = [] ## total
-		
-		for file in tracking_with_direction_csv.to_list():
-			data = pd.read_csv(file)
-			## average total ant count is total number of boxes in the video / number of frames
-			if len(data)!=0:
-				ant_counts.append(len(data) / data['frame_number'].nunique())
-			else:
-				ant_counts.append(0)
-			### away
-			data_away = data[data.direction == 'away']
-			if len(data_away) !=0:
-				ant_counts_away.append(len(data_away) / data_away['frame_number'].nunique())
-			else:
-				ant_counts_away.append(0)
-
-			### toward
-			data_toward = data[data.direction == 'toward']
-			if len(data_toward) != 0:
-				ant_counts_toward.append(len(data_toward) / data_toward['frame_number'].nunique())
-			else:
-				ant_counts_toward.append(0)
-
-
-		## one ant count per video
-		ant_counts, ant_counts_away, ant_counts_toward = np.array(ant_counts), np.array(ant_counts_away), np.array(ant_counts_toward)
-		ant_std_dev, ant_std_dev_away, ant_std_dev_toward = np.zeros_like(ant_counts), np.zeros_like(ant_counts_away), np.zeros_like(ant_counts_toward)
-
-
-		#axes[0].errorbar(hours, ant_counts, label=str((start_day+i).start_time.month) + '-' +str((start_day+i).start_time.day), color='b', alpha=alpha)
-		axes[0].errorbar(hours, ant_counts_away, yerr=ant_std_dev_away , label=str(start_day.start_time.month) + '-' +str(start_day.start_time.day), color='g', alpha=alpha)
-		axes[0].errorbar(hours, ant_counts_toward, yerr=ant_std_dev_toward , label=str(start_day.start_time.month) + '-' +str(start_day.start_time.day), color='r', alpha=alpha)
-
-		axes[1].plot(hours, temperature, label=str((start_day+i).start_time.month) + '-' + str((start_day+i).start_time.day), color='r', alpha=alpha)
-
-	axes[0].set_xticks(range(0,24)) 
-	axes[0].set_ylabel('ant count')
-	axes[0].set_xlabel('hour')
-
-	axes[1].set_xticks(range(0,24)) 
-	axes[1].set_ylabel('temperature')
-	axes[1].set_xlabel('hour')
-
-	plt.show()
-	plt.clf()
-
-
-def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
+def get_data_from_db(start_day, number_of_days=0, site_id = 1):
 	df_per_site = df.loc[df.site_id == site_id]
 
 	counts_away_per_hour_across_days = defaultdict(list)
 	counts_toward_per_hour_across_days = defaultdict(list)
+	counts_total = defaultdict(list)
+
+	temperature = defaultdict(list)
+	humidity = defaultdict(list)
+	lux = defaultdict(list)
 
 
 	for i in range(0, number_of_days):
@@ -161,9 +75,11 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 		for index, video in df_per_site_per_day.iterrows():
 			
 			hour = video['time_stamp'].hour
-			temperature = video['temperature']
-			lux = video['LUX']
-
+			
+			temperature[hour].append(video['temperature'])
+			humidity[hour].append(video['humidity'])
+			lux[hour].append(video['LUX'])
+			
 			detection_only_csv = video['herdnet_detection_only_csv']
 			tracking_with_direction_csv = video['herdnet_tracking_with_direction_csv']
 
@@ -173,24 +89,39 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 			### away
 			data_away = data[data.direction == 'away']
 			if len(data_away) !=0:
-				counts_away_per_hour_across_days[hour].append(len(data_away) / data_away['frame_number'].nunique())
+				counts_away_per_hour_across_days[hour].append(len(data_away) / data['frame_number'].nunique())
 			else:
 				counts_away_per_hour_across_days[hour].append(0)
 
 			### toward
 			data_toward = data[data.direction == 'toward']
 			if len(data_toward) != 0:
-				counts_toward_per_hour_across_days[hour].append(len(data_toward) / data_toward['frame_number'].nunique())
+				counts_toward_per_hour_across_days[hour].append(len(data_toward) / data['frame_number'].nunique())
 			else:
 				counts_toward_per_hour_across_days[hour].append(0)
 
+			### total
+			if len(data) !=0:
+				counts_total[hour].append(len(data)/ data['frame_number'].nunique())
+			else:
+				counts_total[hour].append(0)
+	
+	return counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_total, temperature, humidity, lux
+
+
+def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
+	counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id) 
 	fig, axes = plt.subplots()
 	x_list = []
 	y_list_away, y_list_toward = [], []
+	y_list_total = []
 
 	y_away_err_lower, y_away_err_upper = [], []
 	y_toward_err_lower, y_toward_err_upper = [], []
+	y_total_err_lower, y_total_err_upper = [], []
+
 	bootstrapped_means_away, bootstrapped_means_toward = [], []
+	bootstrapped_means_total = []
 
 	for h in range(24):
 		away_values = counts_away_per_hour_across_days[h]
@@ -209,25 +140,17 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 		y_toward_err_lower.append(np.mean(bootstrapped_data) - conf_min)
 		y_toward_err_upper.append(conf_max - np.mean(bootstrapped_data))
 
+		total_counts = counts_total[h]
+		y_list_total.append(total_counts)
+		bootstrapped_data = bootstrap(total_counts, 10000)
+		conf_min, conf_max = confidence_interval(bootstrapped_data)
+		bootstrapped_means_total.append(np.mean(bootstrapped_data))
+		y_total_err_lower.append(np.mean(bootstrapped_data) - conf_min)
+		y_total_err_upper.append(conf_max - np.mean(bootstrapped_data))
+
 		x_list.append([h]*len(away_values))
 
-		## also perform statistic test (t-test) between the away and toward for every hour
-		t_statistic, p_value = stats.ttest_ind(away_values, toward_values)
-		print (f'hour {h} t_stat {t_statistic} p value {p_value}')
-
-		stat, p = stats.shapiro(away_values)
-		if p <= 0.05:
-			print(f'Shapiro test away data is not normally distributed for hour {h}')
-			print (f'man whitney U : {stats.mannwhitneyu(away_values, toward_values)}')
-
-		stat, p = stats.shapiro(toward_values)
-		if p <= 0.05:
-			print(f'Shapiro test toward data is not normally distributed for hour {h}')
-			print (f'man whitney U : {stats.mannwhitneyu(away_values, toward_values)}')
-		    
-		
-
-
+		statistic_test_for_differences(away_values, toward_values, h)
 	
 	x_axis = list(itertools.chain.from_iterable(x_list))
 
@@ -237,6 +160,11 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 	
 	#axes.scatter(x_axis_away, np.array(list(itertools.chain.from_iterable(y_list_away)))/np.array(list(itertools.chain.from_iterable(y_list_toward))), marker='.', c=[[0,1,0]], s=20)
 	
+	## total counts
+	#axes.scatter(x_axis, list(itertools.chain.from_iterable(y_list_total)), marker='.', c='k', s=20, alpha=0.3)
+	#axes.plot(range(24), bootstrapped_means_total, c='k', alpha=0.3)
+	#if number_of_days >1:	
+	#	axes.errorbar(range(24), bootstrapped_means_total, yerr=[y_total_err_lower, y_total_err_upper], fmt=".", c='k', ecolor='k', elinewidth=1, label='total counts')
 
 	axes.scatter(x_axis_away, list(itertools.chain.from_iterable(y_list_away)), marker='.', c='g', s=20, alpha=0.3)
 	axes.errorbar(range(24) + np.random.uniform(low=0.10, high=0.10, size=24), bootstrapped_means_away, yerr=[y_away_err_lower, y_away_err_upper], fmt=".", c='g', ecolor='k', elinewidth=1, label='away')
@@ -245,11 +173,100 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_toward, yerr=[y_toward_err_lower, y_toward_err_upper], fmt=".", c='r', ecolor='k', elinewidth=1, label='toward')
 	
 	axes.legend()
-	plt.title('Rain tree 11-15-2024 to 12-06-2024')
+	plt.title('Beer tree 10-22-2024 to 11-02-2024')
 	plt.xticks(range(24))
 	plt.xlabel('Hour')
 	plt.ylabel('Mean Ant count')
 	plt.show()
+
+
+def linear_regression():
+	'''
+	  All data pooled together, linear regression of ant counts as independent variable, dependent variables being temperature, humidity, time etc.
+	'''
+	all_ant_counts = []
+	all_temperatures = []
+	all_humidity = []
+	all_lux = []
+	all_hours = []
+	all_site_ids = []
+	all_months = []
+
+	data_collected = [(pd.Period('2024-08-22', freq='D'), 12, 3), (pd.Period('2024-10-03', freq='D'), 17, 3), (pd.Period('2024-11-15', freq='D'), 22, 3), (pd.Period('2024-08-01', freq='D'), 11, 1), (pd.Period('2024-10-22', freq='D'), 12, 1)]
+	
+	for (start_day, number_of_days, site_id) in data_collected:
+		counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id)
+		
+		for hour in range(24):
+			all_ant_counts.extend(counts_total[hour])
+			all_temperatures.extend(temperature[hour])
+			all_humidity.extend(humidity[hour])
+			all_lux.extend(lux[hour])
+			all_hours.extend([hour]*len(counts_total[hour]))
+			### below are our random effects (categorical variables)
+			all_site_ids.extend([site_id]*len(counts_total[hour]))
+			all_months.extend([start_day.month] * len(counts_total[hour]))
+
+
+	df_linear_reg = pd.DataFrame({'ant_count': all_ant_counts, 'temperature': all_temperatures, 'humidity': all_humidity, 'lux':all_lux, 'time':all_hours, 'site':all_site_ids, 'month': all_months})
+	
+	df_linear_reg['site'] = df_linear_reg['site'].astype('category')
+	df_linear_reg['month'] = df_linear_reg['month'].astype('category')
+	
+	df_linear_reg['log_ant_count'] = np.log(df_linear_reg['ant_count'])
+
+	## convert time to cyclic variables to avoid jump between 23:00 and 0:00
+	df_linear_reg['time_sin'] = np.sin(2 * np.pi * df_linear_reg['time'] / 24)
+	df_linear_reg['time_cos'] = np.cos(2 * np.pi * df_linear_reg['time'] / 24)
+
+	
+	model = smf.mixedlm("log_ant_count ~ time_sin + time_cos + temperature + humidity + lux", df_linear_reg, groups=df_linear_reg["site"])
+
+	result = model.fit()
+	print(result.summary())
+
+	### calculate AIC/BIC
+	log_likelihood = result.llf
+	n1 = result.nobs
+	k = result.df_modelwc + 1
+	aic = 2*k - 2*log_likelihood
+	bic = np.log(n1)*k - 2*log_likelihood
+	print (f' AIC is {aic} and BIC is {bic}')
+
+
+	### plot residuals
+	plt.figure(figsize=(8,6))
+	fitted = result.fittedvalues
+	residuals = result.resid
+	sns.scatterplot(x=fitted, y=residuals)
+	plt.axhline(0, linestyle='--', color='red')
+	plt.show()
+
+
+	## check for correlations and multicollinearity
+	predictors = df_linear_reg[['temperature', 'humidity', 'lux', 'time_sin', 'time_cos']]
+	corr = predictors.corr()
+	print (corr)
+	X = sm.add_constant(predictors)
+	# Calculate VIF for each predictor
+	vif = pd.DataFrame()
+	vif['Variable'] = X.columns
+	vif['VIF'] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+
+	print(vif)
+
+	## plot model predictions against actual values
+	fitted_values = result.fittedvalues
+	actual_values = df_linear_reg['log_ant_count']
+	sns.regplot(x=actual_values, y=fitted_values, scatter_kws={'alpha':0.5}, line_kws={'color':'orange'})
+	plt.xlabel('Actual Values')
+	plt.ylabel('Predicted Values')
+	plt.title('Predicted vs Actual Values')
+	plt.show()
+
+	import ipdb;ipdb.set_trace()
+
+
 
 
 def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id = 1):
@@ -270,8 +287,8 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 			lux = video['LUX']
 			
 
-			detection_only_csv = video['yolo_detection_only_csv']
-			tracking_with_direction_csv = video['yolo_tracking_with_direction_csv']
+			detection_only_csv = video['herdnet_detection_only_csv']
+			tracking_with_direction_csv = video['herdnet_tracking_with_direction_csv']
 
 			print (f' reading {tracking_with_direction_csv}')
 			data = pd.read_csv(tracking_with_direction_csv)
@@ -321,6 +338,9 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 
 		x_list.append([h]*len(away_values))
 
+		statistic_test_for_differences(away_values, toward_values, h)
+
+
 	
 	x_axis = list(itertools.chain.from_iterable(x_list))
 
@@ -338,7 +358,7 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_toward, yerr=[y_toward_err_lower, y_toward_err_upper], fmt=".", c='r', ecolor='k', elinewidth=1, label='toward')
 	
 	axes.legend()
-	plt.title('Rain tree 11-15-2024 to 12-05-2024')
+	plt.title('Rain tree 08-22-2024 to 09-02-2024')
 	plt.xticks(range(24))
 	plt.xlabel('Hour')
 	plt.ylabel('Avg number of encounters per video')
@@ -428,15 +448,14 @@ sites = set(df.loc[(df.time_stamp.dt.day == days_period.start_time.day) & (df.ti
 sites = list(sites)
 sites = [1]
 
-#plot_ant_counts_vs_variables_scatter()
+
+linear_regression()
+
 
 for site in sites:
-	#plot_data_for_a_day_range(days_period, 0, site)
-	#plot_data_for_a_day_range(days_period, 10, site)
 	scatter_plot_for_day_range(days_period, 12, site)
-	#scatter_plot_encounters_for_day_range(days_period, 23, site)
+	#scatter_plot_encounters_for_day_range(days_period, 12, site)
 
-#plot_data_by_hour()
 
 
 
