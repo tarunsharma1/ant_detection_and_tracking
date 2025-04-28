@@ -143,6 +143,8 @@ def euclidean_distance_between_two_csvs(csv_file1, csv_file2):
 	hist1, _ = calculate_angle_hist_vector(csv_file1, 'both')
 	hist2, _ = calculate_angle_hist_vector(csv_file2, 'both')
 
+	#score, chi2_p = chisquare(hist1, hist2)
+
 	l1_distance = np.sum(np.abs(hist1 - hist2))
 
 	return l1_distance

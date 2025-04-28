@@ -33,12 +33,21 @@ def grid_of_hours_for_a_given_day(start_day, number_of_hours=24, site_id = 1):
 
 	for i in range(0, number_of_hours):
 		df_per_site_per_day_per_hour = df_per_site_per_day.loc[df_per_site_per_day.time_stamp.dt.hour == i]
+		
+		if len(df_per_site_per_day_per_hour) == 0:
+			continue
+
+
 		temperature1 = df_per_site_per_day_per_hour['temperature'].item()
 		lux1 = df_per_site_per_day_per_hour['LUX'].item()
 		tracking_with_direction_csv1 = df_per_site_per_day_per_hour['herdnet_tracking_with_direction_csv'].item()
 
 		for k in range(0, number_of_hours):
 			df_per_site_per_day_per_hour = df_per_site_per_day.loc[df_per_site_per_day.time_stamp.dt.hour == k]
+			
+			if len(df_per_site_per_day_per_hour) == 0:
+				continue
+
 			temperature2 = df_per_site_per_day_per_hour['temperature'].item()
 			lux2 = df_per_site_per_day_per_hour['LUX'].item()
 			tracking_with_direction_csv2 = df_per_site_per_day_per_hour['herdnet_tracking_with_direction_csv'].item()
@@ -95,21 +104,24 @@ df["time_stamp"] = pd.to_datetime(df["time_stamp"])
 ## Note : we can also do this per hour using hour = pd.Period('2022-02-09 16:00:00', freq='H')
 
 #hours_period = pd.Period('2024-08-25', freq='H')
-days_period = pd.Period('2024-08-02', freq='D')
+days_period = pd.Period('2024-10-03', freq='D')
 
 ## get the sites where we have data for the period we are in interested in
-sites = [1]
+sites = [3]
 
 #plot_ant_counts_vs_variables_scatter()
 
-for i in range(0,5):
+for i in range(0,10):
 	#plot_data_for_a_day_range(days_period, 0, site)
 	#plot_data_for_a_day_range(days_period, 10, site)
 	grid = grid_of_hours_for_a_given_day(days_period + i, 24, sites[0])
 	
+	plt.figure(figsize=(4, 3), dpi=160)
 	plt.imshow(grid)
+	plt.title('rain tree day 10-0' + str(3+i)+'-2024')
 	plt.colorbar()
-	plt.show()
+	#plt.show()
+	plt.savefig('/home/tarun/Desktop/plots_for_committee_meeting/histogram_similarity_grids/rain_grid_10-0'+str(3+i)+'-2024.png', dpi=160)
 
 
 
