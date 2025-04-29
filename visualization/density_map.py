@@ -66,7 +66,7 @@ def plot_and_save_density_map(csv_file):
 	#	plt.scatter(x_edges[row], y_edges[col], color="red", edgecolors="black", marker="o", s=100, label="Outlier")
 
 
-	levels = range(18*2)
+	levels = range(33)
 	
 	hist, xedges, yedges, image = ax.hist2d(X, Y, bins=[x_bins, y_bins], cmap='viridis', norm=colors.BoundaryNorm(levels, 256))
 
@@ -79,7 +79,7 @@ def plot_and_save_density_map(csv_file):
 	ax.set_ylabel('Y')
 	ax.set_title(vid_name.split('_herdnet_tracking_with_direction')[0] + '_toward')
 	#plt.show()
-	plt.savefig('/home/tarun/Desktop/ant_density_plots_herdnet/' + vid_name + '_toward.png' )
+	plt.savefig('/home/tarun/Desktop/ant_density_plots_herdnet/beer-10-22-2024_to_11-02-2024/' + vid_name + '_toward.png' )
 	plt.close()
 
 
@@ -87,7 +87,7 @@ def plot_and_save_density_map(csv_file):
 thresholds = []
 
 
-vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
+vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/*')
 
 #vid_folders = ['/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-04_00_01_16']
 for idx,vid_folder in enumerate(vid_folders):

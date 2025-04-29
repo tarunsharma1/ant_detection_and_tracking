@@ -8,7 +8,7 @@ import math
 import cv2
 from scipy.stats import chisquare, kstest
 from scipy.stats import entropy
-
+from collections import defaultdict
 '''
 
 Convert angles to a vector (histogram) of discritized angles lets say in 15 degree buckets (so 24 buckets). For each bucket (0-15, 15-30, 30-45 ..., 330-360), 
@@ -69,6 +69,23 @@ def calculate_angle_hist_vector(csv_file, direction, correction=False):
 	if len(df) == 0:
 		return
 
+	if direction == 'both' and correction==True:
+		away_angles = np.array(df.loc[df.direction == 'away']['angle'].to_list())
+		toward_angles = np.array(df.loc[df.direction == 'toward']['angle'].to_list())
+		toward_angles = (toward_angles + 180)%360
+		angles = np.concatenate((away_angles, toward_angles))
+		num_frames = max(df['frame_number'])
+		
+		hist, bin_edges = np.histogram(angles, bins=list(range(0,361,30)))
+		## divide overall counts for every bin by number of frames so as to get average number of ants within that angle bin
+		hist = hist/ num_frames
+		### normalize by total number of ants (sum of hist) so that we can separate out differences the effect of differences in numbers of ants going away and toward vs the structure for the L2 score. 
+		hist = hist/np.sum(hist)
+
+		return hist, bin_edges
+
+
+
 	angles = df['angle'].to_list()
 	angles = np.array(angles)
 
@@ -80,9 +97,9 @@ def calculate_angle_hist_vector(csv_file, direction, correction=False):
 
 	num_frames = max(df['frame_number'])
 
-
+	
 	## 24 bins of 15 degrees each
-	hist, bin_edges = np.histogram(angles, bins=list(range(0,360,15)))
+	hist, bin_edges = np.histogram(angles, bins=list(range(0,361,30)))
 
 	## divide overall counts for every bin by number of frames so as to get average number of ants within that angle bin
 	hist = hist/ num_frames
@@ -114,8 +131,8 @@ def euclidean_distance_between_away_and_toward(csv_file):
 	#score = entropy(toward_vector, away_vector)
 	#print(f"Chi-Square Statistic: {score}, p-value: {chi2_p}")
 
-	#plt.stairs(away_vector, away_bin_edges, color='g')
-	#plt.stairs(toward_vector, toward_bin_edges, color='r')
+	plt.stairs(away_vector, away_bin_edges, color='g')
+	plt.stairs(toward_vector, toward_bin_edges, color='r')
 
 	#plt.stairs(total_ant_vector, away_bin_edges)
 
@@ -123,25 +140,26 @@ def euclidean_distance_between_away_and_toward(csv_file):
 	l2_distance = math.sqrt(np.sum((away_vector - toward_vector)**2))
 	l1_distance = np.sum(np.abs(away_vector - toward_vector))
 
-
-	#plt.title( ' l1:' + str(round(l1_distance,3)))
-
-	#plt.show()
+	
 	vid_name = csv_file.split('/')[-1].split('.')[0]
-	#plt.ylim(0,0.2)
-	#plt.title(vid_name.split('_herdnet')[0])
-	#plt.savefig('/home/tarun/Desktop/ant_direction_histogram_plots_herdnet/' + vid_name + '.png' )
-	#plt.close()
 
-	return l2_distance
+	plt.title('rain_' + vid_name.split('_herdnet')[0] + ' L1 distance:' + str(round(l1_distance,3)))
+
+	plt.ylim(0,0.4)
+	
+	plt.savefig('/home/tarun/Desktop/ant_direction_histogram_plots_herdnet/away-towards/rain-tree-08-22-2024_to_09-02-2024/' + vid_name + '.png' )
+	plt.close()
+	#plt.show()
+
+	return l1_distance
 
 
 def euclidean_distance_between_two_csvs(csv_file1, csv_file2):
 	'''
 		Euclidean distance or some score of histogram similarity for all ants together between two tracking files. I'm not going to do the angle adjustment between away and toward for this.
 	'''
-	hist1, _ = calculate_angle_hist_vector(csv_file1, 'both')
-	hist2, _ = calculate_angle_hist_vector(csv_file2, 'both')
+	hist1, _ = calculate_angle_hist_vector(csv_file1, 'both', True)
+	hist2, _ = calculate_angle_hist_vector(csv_file2, 'both', True)
 
 	#score, chi2_p = chisquare(hist1, hist2)
 
@@ -156,21 +174,37 @@ def euclidean_distance_between_two_csvs(csv_file1, csv_file2):
 
 
 if __name__ == '__main__':
-
-	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
-
-	plot_corrs = []
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/*')
+	vid_folders.sort()
+	plot_corrs_per_hour = defaultdict(list)
+	
+	
 	for idx,vid_folder in enumerate(vid_folders):
 		name = vid_folder.split('/')[-1]
 		#csv_file = vid_folder + '/' + name + '_yolo_detections.csv'
 		csv_file = vid_folder + '/' + name + '_herdnet_tracking_with_direction_and_angle_7_1_0.1.csv'
-		
-		if os.path.exists(csv_file):
-			print (f'plotting density map for {csv_file}')
-			#plot_and_save_circular_hist(csv_file)
-			
-			plot_corrs.append(euclidean_distance_between_away_and_toward(csv_file))
+		hour = int(name.split('_')[1])
 
-	plt.plot(plot_corrs)
+		if os.path.exists(csv_file):
+			
+			print (f'plotting histogram for {csv_file}')
+			hist, bins = calculate_angle_hist_vector(csv_file, 'both', True)
+			plt.stairs(hist, bins, color='k')
+			plt.title('beer_' + name)
+			plt.ylim(0,0.4)
+			
+			plt.savefig('/home/tarun/Desktop/ant_direction_histogram_plots_herdnet/all_trails/beer-tree-08-01-2024_to_08-10-2024/' + name + '.png' )
+			plt.close()
+			
+			#plot_corrs_per_hour[hour].append(euclidean_distance_between_away_and_toward(csv_file))
+			
+
+	
+	plt.title('L1 scores between away vs toward angle histograms per hour')	
+	## plot mean of every hour
+	for h in range(24):
+		plt.plot(h, np.mean(np.array(plot_corrs_per_hour[h])), '.')
+	
+
 	plt.show()
 		
