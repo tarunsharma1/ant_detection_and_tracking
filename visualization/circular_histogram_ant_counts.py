@@ -193,10 +193,10 @@ if __name__ == '__main__':
 			plt.title('beer_' + name)
 			plt.ylim(0,0.4)
 			
-			plt.savefig('/home/tarun/Desktop/ant_direction_histogram_plots_herdnet/all_trails/beer-tree-08-01-2024_to_08-10-2024/' + name + '.png' )
+			#plt.savefig('/home/tarun/Desktop/ant_direction_histogram_plots_herdnet/all_trails/beer-tree-08-01-2024_to_08-10-2024/' + name + '.png' )
 			plt.close()
 			
-			#plot_corrs_per_hour[hour].append(euclidean_distance_between_away_and_toward(csv_file))
+			plot_corrs_per_hour[hour].append(euclidean_distance_between_away_and_toward(csv_file))
 			
 
 	

@@ -61,6 +61,8 @@ def get_data_from_db(start_day, number_of_days=0, site_id = 1):
 
 	counts_away_per_hour_across_days = defaultdict(list)
 	counts_toward_per_hour_across_days = defaultdict(list)
+	counts_loitering_per_hour_across_days = defaultdict(list)
+
 	counts_total = defaultdict(list)
 
 	temperature = defaultdict(list)
@@ -81,8 +83,9 @@ def get_data_from_db(start_day, number_of_days=0, site_id = 1):
 			lux[hour].append(video['LUX'])
 			
 			detection_only_csv = video['herdnet_detection_only_csv']
-			tracking_with_direction_csv = video['herdnet_tracking_with_direction_csv']
+			tracking_with_direction_csv = video['herdnet_tracking_with_direction_closest_boundary_method_csv']
 
+			
 			print (f' reading {tracking_with_direction_csv}')
 			data = pd.read_csv(tracking_with_direction_csv)
 			
@@ -100,30 +103,39 @@ def get_data_from_db(start_day, number_of_days=0, site_id = 1):
 			else:
 				counts_toward_per_hour_across_days[hour].append(0)
 
+			### loitering/unknown
+			data_loitering = data[data.direction == 'unknown']
+			if len(data_loitering) != 0:
+				counts_loitering_per_hour_across_days[hour].append(len(data_loitering) / data['frame_number'].nunique())
+			else:
+				counts_loitering_per_hour_across_days[hour].append(0)
+
 			### total
 			if len(data) !=0:
 				counts_total[hour].append(len(data)/ data['frame_number'].nunique())
 			else:
 				counts_total[hour].append(0)
 	
-	return counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_total, temperature, humidity, lux
+	return counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_loitering_per_hour_across_days, counts_total, temperature, humidity, lux
 
 
 def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
-	counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id) 
+	counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_loitering_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id) 
 	fig, axes = plt.subplots()
 	x_list = []
-	y_list_away, y_list_toward = [], []
+	y_list_away, y_list_toward, y_list_loitering = [], [], []
 	y_list_total = []
 
 	y_away_err_lower, y_away_err_upper = [], []
 	y_toward_err_lower, y_toward_err_upper = [], []
+	y_loitering_err_lower, y_loitering_err_upper = [], []
 	y_total_err_lower, y_total_err_upper = [], []
 
-	bootstrapped_means_away, bootstrapped_means_toward = [], []
+	bootstrapped_means_away, bootstrapped_means_toward, bootstrapped_means_loitering = [], [], []
 	bootstrapped_means_total = []
 
 	for h in range(24):
+		## away
 		away_values = counts_away_per_hour_across_days[h]
 		y_list_away.append(away_values)
 		bootstrapped_data = bootstrap(away_values, 10000)
@@ -132,6 +144,7 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 		y_away_err_lower.append(np.mean(bootstrapped_data) - conf_min)
 		y_away_err_upper.append(conf_max - np.mean(bootstrapped_data))
 		
+		## toward
 		toward_values = counts_toward_per_hour_across_days[h]
 		y_list_toward.append(toward_values)
 		bootstrapped_data = bootstrap(toward_values, 10000)
@@ -140,6 +153,16 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 		y_toward_err_lower.append(np.mean(bootstrapped_data) - conf_min)
 		y_toward_err_upper.append(conf_max - np.mean(bootstrapped_data))
 
+		## loitering
+		loitering_values = counts_loitering_per_hour_across_days[h]
+		y_list_loitering.append(loitering_values)
+		bootstrapped_data = bootstrap(loitering_values, 10000)
+		conf_min, conf_max = confidence_interval(bootstrapped_data)
+		bootstrapped_means_loitering.append(np.mean(bootstrapped_data))
+		y_loitering_err_lower.append(np.mean(bootstrapped_data) - conf_min)
+		y_loitering_err_upper.append(conf_max - np.mean(bootstrapped_data))
+
+		## total
 		total_counts = counts_total[h]
 		y_list_total.append(total_counts)
 		bootstrapped_data = bootstrap(total_counts, 10000)
@@ -157,23 +180,28 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 	## add some jitter
 	x_axis_away = x_axis + np.random.uniform(low=0.10, high=0.10, size=len(x_axis))
 	x_axis_toward = x_axis + np.random.uniform(low=-0.10, high=-0.10, size=len(x_axis))
+	x_axis_loitering = x_axis + np.random.uniform(low=0, high=0, size=len(x_axis))
 	
 	#axes.scatter(x_axis_away, np.array(list(itertools.chain.from_iterable(y_list_away)))/np.array(list(itertools.chain.from_iterable(y_list_toward))), marker='.', c=[[0,1,0]], s=20)
 	
-	## total counts
-	#axes.scatter(x_axis, list(itertools.chain.from_iterable(y_list_total)), marker='.', c='k', s=20, alpha=0.3)
-	#axes.plot(range(24), bootstrapped_means_total, c='k', alpha=0.3)
-	#if number_of_days >1:	
-	#	axes.errorbar(range(24), bootstrapped_means_total, yerr=[y_total_err_lower, y_total_err_upper], fmt=".", c='k', ecolor='k', elinewidth=1, label='total counts')
+	## total counts	
+	# axes.scatter(x_axis, list(itertools.chain.from_iterable(y_list_total)), marker='.', c='k', s=20, alpha=0.3)
+	# axes.plot(range(24), bootstrapped_means_total, c='k', alpha=0.3)
+	# if number_of_days >1:	
+	# 	axes.errorbar(range(24), bootstrapped_means_total, yerr=[y_total_err_lower, y_total_err_upper], fmt=".", c='k', ecolor='k', elinewidth=1, label='total counts')
 
+	### away vs toward counts 
 	axes.scatter(x_axis_away, list(itertools.chain.from_iterable(y_list_away)), marker='.', c='g', s=20, alpha=0.3)
 	axes.errorbar(range(24) + np.random.uniform(low=0.10, high=0.10, size=24), bootstrapped_means_away, yerr=[y_away_err_lower, y_away_err_upper], fmt=".", c='g', ecolor='k', elinewidth=1, label='away')
 
 	axes.scatter(x_axis_toward, list(itertools.chain.from_iterable(y_list_toward)), marker='.', c='r', s=20, alpha=0.3)
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_toward, yerr=[y_toward_err_lower, y_toward_err_upper], fmt=".", c='r', ecolor='k', elinewidth=1, label='toward')
+
+	axes.scatter(x_axis_loitering, list(itertools.chain.from_iterable(y_list_loitering)), marker='.', c='y', s=20, alpha=0.3)
+	axes.errorbar(range(24) + np.random.uniform(low=0, high=0, size=24), bootstrapped_means_loitering, yerr=[y_loitering_err_lower, y_loitering_err_upper], fmt=".", c='y', ecolor='k', elinewidth=1, label='loitering/unknown')
 	
 	axes.legend()
-	plt.title('Beer tree 10-22-2024 to 11-02-2024')
+	plt.title('Shack tree 08-01-2024 to 09-18-2024')
 	plt.xticks(range(24))
 	plt.xlabel('Hour')
 	plt.ylabel('Mean Ant count')
@@ -274,6 +302,7 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 
 	encounters_away_per_hour_across_days = defaultdict(list)
 	encounters_toward_per_hour_across_days = defaultdict(list)
+	encounters_loitering_per_hour_across_days = defaultdict(list)
 
 
 	for i in range(0, number_of_days):
@@ -288,7 +317,7 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 			
 
 			detection_only_csv = video['herdnet_detection_only_csv']
-			tracking_with_direction_csv = video['herdnet_tracking_with_direction_csv']
+			tracking_with_direction_csv = video['herdnet_tracking_with_direction_closest_boundary_method_csv']
 
 			print (f' reading {tracking_with_direction_csv}')
 			data = pd.read_csv(tracking_with_direction_csv)
@@ -311,15 +340,26 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 			else:
 				encounters_toward_per_hour_across_days[hour].append(0)
 
+			### loitering
+			data_loitering = data[data.direction == 'unknown']
+			if len(data_loitering) != 0:
+				encounters = count_encounters_per_frame(data_loitering, threshold=5)		
+				encounters_loitering_per_hour_across_days[hour].append(sum(encounters.values()) / data_toward['frame_number'].nunique())
+			else:
+				encounters_loitering_per_hour_across_days[hour].append(0)
+
 	fig, axes = plt.subplots()
 	x_list = []
-	y_list_away, y_list_toward = [], []
+	y_list_away, y_list_toward, y_list_loitering = [], [], []
 
 	y_away_err_lower, y_away_err_upper = [], []
 	y_toward_err_lower, y_toward_err_upper = [], []
-	bootstrapped_means_away, bootstrapped_means_toward = [], []
+	y_loitering_err_lower, y_loitering_err_upper = [], []
+	
+	bootstrapped_means_away, bootstrapped_means_toward, bootstrapped_means_loitering = [], [], []
 
 	for h in range(24):
+		## away
 		away_values = encounters_away_per_hour_across_days[h]
 		y_list_away.append(away_values)
 		bootstrapped_data = bootstrap(away_values, 10000)
@@ -328,6 +368,7 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 		y_away_err_lower.append(np.mean(bootstrapped_data) - conf_min)
 		y_away_err_upper.append(conf_max - np.mean(bootstrapped_data))
 		
+		## toward
 		toward_values = encounters_toward_per_hour_across_days[h]
 		y_list_toward.append(toward_values)
 		bootstrapped_data = bootstrap(toward_values, 10000)
@@ -335,6 +376,15 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 		bootstrapped_means_toward.append(np.mean(bootstrapped_data))
 		y_toward_err_lower.append(np.mean(bootstrapped_data) - conf_min)
 		y_toward_err_upper.append(conf_max - np.mean(bootstrapped_data))
+
+		## loitering/unknown
+		loitering_values = encounters_loitering_per_hour_across_days[h]
+		y_list_loitering.append(loitering_values)
+		bootstrapped_data = bootstrap(loitering_values, 10000)
+		conf_min, conf_max = confidence_interval(bootstrapped_data)
+		bootstrapped_means_loitering.append(np.mean(bootstrapped_data))
+		y_loitering_err_lower.append(np.mean(bootstrapped_data) - conf_min)
+		y_loitering_err_upper.append(conf_max - np.mean(bootstrapped_data))
 
 		x_list.append([h]*len(away_values))
 
@@ -347,6 +397,7 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 	## add some jitter
 	x_axis_away = x_axis + np.random.uniform(low=0.10, high=0.10, size=len(x_axis))
 	x_axis_toward = x_axis + np.random.uniform(low=-0.10, high=-0.10, size=len(x_axis))
+	x_axis_loitering = x_axis + np.random.uniform(low=-0.10, high=-0.10, size=len(x_axis))
 	
 	#axes.scatter(x_axis_away, np.array(list(itertools.chain.from_iterable(y_list_away)))/np.array(list(itertools.chain.from_iterable(y_list_toward))), marker='.', c=[[0,1,0]], s=20)
 	
@@ -357,6 +408,9 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 	axes.scatter(x_axis_toward, list(itertools.chain.from_iterable(y_list_toward)), marker='.', c='r', s=20, alpha=0.3)
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_toward, yerr=[y_toward_err_lower, y_toward_err_upper], fmt=".", c='r', ecolor='k', elinewidth=1, label='toward')
 	
+	axes.scatter(x_axis_loitering, list(itertools.chain.from_iterable(y_list_loitering)), marker='.', c='y', s=20, alpha=0.3)
+	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_loitering, yerr=[y_loitering_err_lower, y_loitering_err_upper], fmt=".", c='y', ecolor='k', elinewidth=1, label='loitering/unknown')
+
 	axes.legend()
 	plt.title('Rain tree 08-22-2024 to 09-02-2024')
 	plt.xticks(range(24))
@@ -424,7 +478,7 @@ def plot_ant_counts_vs_variables_scatter():
 connection = database_helper.create_connection("localhost", "root", "master", "ant_colony_db")
 cursor = connection.cursor()
 query = f"""
-	select Counts.video_id, Counts.yolo_detection_only_csv, Counts.yolo_tracking_with_direction_csv, Counts.herdnet_detection_only_csv, Counts.herdnet_tracking_with_direction_csv,
+	select Counts.video_id, Counts.yolo_detection_only_csv, Counts.yolo_tracking_with_direction_csv, Counts.herdnet_detection_only_csv, Counts.herdnet_tracking_with_direction_closest_boundary_method_csv,
 	Videos.temperature, Videos.humidity, Videos.LUX, Videos.time_stamp, Videos.site_id from Counts INNER JOIN Videos on Counts.video_id=Videos.video_id;
 	"""
 cursor.execute(query)
@@ -441,19 +495,19 @@ df["time_stamp"] = pd.to_datetime(df["time_stamp"])
 ## Note : we can also do this per hour using hour = pd.Period('2022-02-09 16:00:00', freq='H')
 
 #days_period = pd.Period(df.time_stamp.min(), freq='D')
-days_period = pd.Period('2024-10-22', freq='D')
+days_period = pd.Period('2024-08-01', freq='D')
 
 ## get the sites where we have data for the period we are in interested in
 sites = set(df.loc[(df.time_stamp.dt.day == days_period.start_time.day) & (df.time_stamp.dt.month == days_period.start_time.month)].site_id)
 sites = list(sites)
-sites = [1]
+sites = [2]
 
 
-linear_regression()
+#linear_regression()
 
 
 for site in sites:
-	scatter_plot_for_day_range(days_period, 12, site)
+	scatter_plot_for_day_range(days_period, 50, site)
 	#scatter_plot_encounters_for_day_range(days_period, 12, site)
 
 

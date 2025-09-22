@@ -135,7 +135,7 @@ def count_ants_using_blob_detection(video, subset_of_frames=None, params=None):
 def insert_count_into_db():
 	### only get the videos which have not been counted yet
 	query = f"""
-	SELECT video_id from Counts WHERE herdnet_detection_only_csv is NULL;
+	SELECT video_id from Counts;
 	"""
 	videos = []
 	videos_db = database_helper.execute_query(connection, query)
@@ -170,15 +170,17 @@ def insert_count_into_db():
 		#### check for csv file and insert the path to the csv file containing pre-run detections #######
 		detections_csv = video.split('.mp4')[0] + '_herdnet_detections.csv'
 		tracking_csv = video.split('.mp4')[0] + '_herdnet_tracking_with_direction_and_angle_7_1_0.1.csv'
+		tracking_csv_closest_boundary_method = video.split('.mp4')[0] + '_herdnet_tracking_with' + '_direction_and_angle_closest_boundary_thresh_20_7_1_0.1.csv'
 
 
 		### if column with video name (key) already exists ###
 		query = f"""UPDATE Counts
 			SET herdnet_detection_only_csv = '{detections_csv}', 
-			herdnet_tracking_with_direction_csv = '{tracking_csv}'
+			herdnet_tracking_with_direction_closest_boundary_method_csv = '{tracking_csv_closest_boundary_method}'
 			WHERE video_id = '{video}';"""
-
-		if os.path.isfile(detections_csv) and os.path.isfile(tracking_csv):
+		#herdnet_tracking_with_direction_csv = '{tracking_csv}',
+			
+		if os.path.isfile(detections_csv) and os.path.isfile(tracking_csv_closest_boundary_method):
 			database_helper.execute_query(connection, query)
 			connection.commit()
 		else:

@@ -152,10 +152,13 @@ if __name__ == '__main__':
 	#'/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01', 
 	#'/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01']
 	
-	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
-	vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/*'))
-	vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-11-15-2024_to_12-06-2024/*'))
+	# vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/*')
+	# vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/*'))
+	# vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/rain-tree-11-15-2024_to_12-06-2024/*'))
 
+	vid_folders = glob.glob('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/*')
+	vid_folders.extend(glob.glob('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-26-2024_to_09-18-2024/*'))
+	
 
 	for vid_folder in vid_folders:
 		folder = vid_folder
