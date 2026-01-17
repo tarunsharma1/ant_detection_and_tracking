@@ -121,7 +121,6 @@ class Preprocessing_for_Annotation:
 	def convert_to_mp4(self):
 		## check if h264 file has been converted to mp4. If not, do the convertion
 		mp4_file = glob.glob(self.parent_path + self.video_folder + '/*.mp4')
-
 		if len(mp4_file) == 0:
 			## convert vid.h264 file to mp4 file
 			convert_video_h264_to_mp4.convert(self.video_folder + '/vid.h264', self.video_folder + self.video_folder.split('/')[0] +'.mp4', path=self.parent_path, mask=False)
@@ -223,13 +222,13 @@ class Preprocessing_for_Annotation:
 
 
 if __name__ == '__main__':
-	parent_path = '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-25-2024/'
-	video_folder='2024-10-23_00_01_06/'
+	parent_path = '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/'
+	video_folder='2024-08-02_12_01_01/'
 
-	A = Preprocessing_for_Annotation('rain', parent_path, video_folder )
+	A = Preprocessing_for_Annotation('beer', parent_path, video_folder )
 	video = A.convert_to_mp4()
-	#bg_subtracted_vid = A.convert_to_bg_subtracted_video(video)
-	xml_file, points_dict_start_frame = A.write_frames_and_xml_for_annotations(video, 1, 200, "1892470")
+	bg_subtracted_vid = A.convert_to_bg_subtracted_video(video)
+	#xml_file, points_dict_start_frame = A.write_frames_and_xml_for_annotations(video, 300, 350, "1892470")
 	#P = Patchify(xml_file, parent_path + video_folder)
 	#for frame in points_dict_start_frame:
 	#	P.patchify(frame, points_dict_start_frame[frame], patch_index_to_keep=None)

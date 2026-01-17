@@ -62,7 +62,7 @@ def convert_to_csv(annotation_xml_file, folder_where_annotated_video_came_from, 
 	mask = cv2.imread(mask_dict[label], 0)
 	ret, mask_bin = cv2.threshold(mask, 127, 255, cv2.THRESH_BINARY)
 
-	f = open('/home/tarun/Desktop/TrackEval/data/gt/mot_challenge/ant_tracks-val/' + label + '/gt/gt.txt', 'w')
+	f = open('/home/tarun/Desktop/TrackEval/data/gt/mot_challenge/ant_tracks-test/' + label + '/gt/gt.txt', 'w')
     
 	for frame in dictionary_of_boxes:
 		boxes = dictionary_of_boxes[frame]
@@ -92,16 +92,31 @@ def convert_to_csv(annotation_xml_file, folder_where_annotated_video_came_from, 
 #convert_to_yolo_labels('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-08-03_13_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-30-2024/2024-08-03_13_01_01/', 20, '2024-08-03_13_01_01')
 
 mask_dict = {'2024-10-09_23_01_00':'/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png', 
-    '2024-10-27_23_01_01': '/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png', 
-    '2024-08-13_11_01_01': '/home/tarun/Downloads/shack-tree-diffuser-08-01-2024_to_08-26-2024.png'
-    }
+'2024-10-27_23_01_01': '/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png', 
+'2024-08-13_11_01_01': '/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',
+'2024-08-22_03_01_01': '/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',
+'2024-08-22_21_01_00': '/home/tarun/Desktop/masks/rain-tree-08-22-2024_to_09-02-2024.png',
+'2024-10-04_12_01_01': '/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png',
+'2024-08-05_16_01_01': '/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',
+'2024-08-09_11_01_02': '/home/tarun/Desktop/masks/beer-tree-08-01-2024_to_08-10-2024.png',
+'2024-10-22_22_01_00': '/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png'
+
+}
+
 
 
 ### Val
-convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
-convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-27_23_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_10-28-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01')
-convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-09_23_01_00_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-25-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00')
+# convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
+# convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-27_23_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_10-28-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01')
+# convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-09_23_01_00_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-25-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00')
 
 ### Test
 #convert_to_yolo_labels('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01_patches.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01')
 #convert_to_yolo_labels('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-08-22_21_01_00_patches.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-22_21_01_00/', 20, '2024-08-22_21_01_00')
+
+convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01')
+convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-08-22_21_01_00_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-22_21_01_00/', 20, '2024-08-22_21_01_00')
+convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-04_12_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-04_12_01_01/', 20, '2024-10-04_12_01_01')
+convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-05_16_01_01_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-05_16_01_01/', 20, '2024-08-05_16_01_01')
+convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-08-09_11_01_02_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-09_11_01_02/', 20, '2024-08-09_11_01_02')
+convert_to_csv('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-22_22_01_00_tracking.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-22_22_01_00/', 20, '2024-10-22_22_01_00')

@@ -27,20 +27,21 @@ image_width, image_height = 1920,1080
 
 def convert_prediction_csv_to_trackeval_txt(folder_where_annotated_video_came_from, box_size, label, start_frame):
 	
-	sort_params = [(10,1,0.1), (7,1,0.1), (7,2,0.1)]
+	#sort_params = [(10,1,0.1), (7,1,0.1), (7,2,0.1)]
+	sort_params = [(7,1,0.1)]
 
 	for (max_age, min_hits, iou_threshold) in sort_params:
 
-		df = pd.read_csv(folder_where_annotated_video_came_from + label + '_herdnet_tracking_with_direction_and_angle_' + str(max_age)+'_'+ str(min_hits) + '_' + str(iou_threshold) + '.csv')
+		df = pd.read_csv(folder_where_annotated_video_came_from + label + '_herdnet_tracking_with_direction_and_angle_closest_boundary_thresh_20_' + str(max_age)+'_'+ str(min_hits) + '_' + str(iou_threshold) + '.csv')
 		## only keep the ones we have annotations for
 		df = df.loc[(df.frame_number >= start_frame) & (df.frame_number < start_frame+30)]
 
-		folder_path = '/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT-'+ str(max_age) + '_' + str(min_hits) + '_' + str(iou_threshold)
+		folder_path = '/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-test/SORT-'+ str(max_age) + '_' + str(min_hits) + '_' + str(iou_threshold)
 		if not os.path.exists(folder_path):
   			os.makedirs(folder_path)
   			os.makedirs(folder_path + '/data')
 
-		f = open('/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-val/SORT-'+ str(max_age) + '_' + str(min_hits) + '_' + str(iou_threshold) + '/data/' + label + '.txt', 'w')
+		f = open('/home/tarun/Desktop/TrackEval/data/trackers/mot_challenge/ant_tracks-test/SORT-'+ str(max_age) + '_' + str(min_hits) + '_' + str(iou_threshold) + '/data/' + label + '.txt', 'w')
 
 		
 		for index, row in df.iterrows():
@@ -75,10 +76,17 @@ def convert_prediction_csv_to_trackeval_txt(folder_where_annotated_video_came_fr
 
 
 ### Val
-convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01', 500)
-convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01', 200)
-convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00', 250)
+#convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01', 500)
+#convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01', 200)
+#convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00', 250)
 
 ### Test
 #convert_to_yolo_labels('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01_patches.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-22-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01')
 #convert_to_yolo_labels('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-08-22_21_01_00_patches.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-22_21_01_00/', 20, '2024-08-22_21_01_00')
+
+convert_prediction_csv_to_trackeval_txt( '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01', 300)
+convert_prediction_csv_to_trackeval_txt( '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-22_21_01_00/', 20, '2024-08-22_21_01_00', 100)
+convert_prediction_csv_to_trackeval_txt( '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-04_12_01_01/', 20, '2024-10-04_12_01_01', 10)
+convert_prediction_csv_to_trackeval_txt( '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-05_16_01_01/', 20, '2024-08-05_16_01_01', 50)
+convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-09_11_01_02/', 20, '2024-08-09_11_01_02', 100)
+convert_prediction_csv_to_trackeval_txt('/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-22_22_01_00/', 20, '2024-10-22_22_01_00', 300)

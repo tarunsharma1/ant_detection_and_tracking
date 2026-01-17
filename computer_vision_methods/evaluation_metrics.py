@@ -14,6 +14,12 @@ import plots_comparing_predictions_and_gt
 import cv2
 import pandas as pd
 
+
+
+parameters = {'axes.labelsize':8,'axes.titlesize':8, 'xtick.labelsize':8, 'font.family':"sans-serif", 'font.sans-serif':['Arial'], 'font.size':8, 'svg.fonttype':'none'}
+plt.rcParams.update(parameters)
+
+
 def compute_iou(box_1, box_2):
     '''
     This function takes a pair of bounding boxes and returns intersection-over-
@@ -178,7 +184,7 @@ def plot_pr_curve(preds_val, gts_val):
         #print (iou_thresh)
         #print (recall_list, precision_list)
         #import ipdb;ipdb.set_trace()
-        plt.plot(np.array(recall_list), np.array(precision_list),c='tab:red', label='herdnet max F1 score 0.782 at threshold 0.327')
+        plt.plot(np.array(recall_list), np.array(precision_list),c='tab:red'), #label='herdnet max F1 score 0.782 at threshold 0.327')
 
     plt.legend()
     plt.show()
@@ -316,7 +322,7 @@ def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_cam
     video_detections_csv = folder_where_annotated_video_came_from + label + '_herdnet_detections.csv'
     df = pd.read_csv(video_detections_csv)
 
-    #df = df.loc[df.confidence >= 0.327]
+    df = df.loc[df.confidence >= 0.327]
 
     
     preds_boxes_dict = {}
@@ -331,6 +337,26 @@ def get_herdnet_detection_preds(gts_boxes_dict, folder_where_annotated_video_cam
         preds_boxes_dict[image] = list_of_points
     
     return preds_boxes_dict
+
+### this is for reading tracking results (detection + tracking) and counting unique ant IDs per frame
+def get_sort_detections(gts_boxes_dict, folder_where_annotated_video_came_from, label):
+    ''' read tracking results from precomputed CSVs and count unique ant IDs per frame '''
+    
+    video_tracking_csv = folder_where_annotated_video_came_from + label + '_herdnet_tracking_with_direction_and_angle_closest_boundary_thresh_20_7_1_0.1.csv'
+    df = pd.read_csv(video_tracking_csv)
+    
+    # Dictionary to store counts per frame (mapping image paths to counts)
+    track_counts_dict = {}
+    
+    for image in list(gts_boxes_dict.keys()):
+        frame_number = int(image.split('_')[-1].split('.jpg')[0])
+        df_frame = df.loc[df.frame_number == frame_number]
+        
+        # Count unique ant IDs for this frame
+        unique_ant_count = df_frame['ant_id'].nunique() if len(df_frame) > 0 else 0
+        track_counts_dict[image] = unique_ant_count
+    
+    return track_counts_dict
 
 '''
 This next method is to evaluate herdnet predictions as spit out by running the training script 
@@ -395,7 +421,7 @@ def get_metrics(annotation_xml_file, folder_where_annotated_video_came_from, box
     f1_score = (2*tp)/(2*tp + fp + fn)
     precision = tp/(tp + fp)
     recall = tp/(tp + fn)
-
+    print (label)
     print ('true positives, false positives, false negs:', tp,fp,fn)
     print ('f1 score is :', f1_score)
     print ('precision, recall:',precision, recall)
@@ -408,32 +434,126 @@ if __name__ == '__main__':
 
     mask_dict = {'2024-10-09_23_01_00':'/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png', 
     '2024-10-27_23_01_01': '/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png', 
-    '2024-08-13_11_01_01': '/home/tarun/Downloads/shack-tree-diffuser-08-01-2024_to_08-26-2024.png'
+    '2024-08-13_11_01_01': '/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',
+    '2024-08-22_03_01_01': '/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',
+    '2024-08-22_21_01_00': '/home/tarun/Desktop/masks/rain-tree-08-22-2024_to_09-02-2024.png',
+    '2024-10-04_12_01_01': '/home/tarun/Desktop/masks/rain-tree-10-03-2024_to_10-19-2024.png',
+    '2024-08-05_16_01_01': '/home/tarun/Desktop/masks/shack-tree-diffuser-08-01-2024_to_08-26-2024.png',
+    '2024-08-09_11_01_02': '/home/tarun/Desktop/masks/beer-tree-08-01-2024_to_08-10-2024.png',
+    '2024-10-22_22_01_00': '/home/tarun/Desktop/masks/beer-10-22-2024_to_11-02-2024.png'
+
     }
 
-    gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-09_23_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00')
-    gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-27_23_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01')
-    gts_3, preds_3 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
+    ### validation set ########
+    # gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-09_23_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-09_23_01_00/', 20, '2024-10-09_23_01_00')
+    # gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-27_23_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-27_23_01_01/', 20, '2024-10-27_23_01_01')
+    # gts_3, preds_3 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-13_11_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-13_11_01_01/', 20, '2024-08-13_11_01_01')
+
+    # gts_1.update(gts_2)
+    # gts_1.update(gts_3)
+    # preds_1.update(preds_2)
+    # preds_1.update(preds_3)
+    ######################################
+
+    ######## test set ####################
+    gts_1, preds_1 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-22_03_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-22_03_01_01/', 20, '2024-08-22_03_01_01')
+    track_counts_1 = get_sort_detections(gts_1, '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-22_03_01_01/', '2024-08-22_03_01_01')
+    
+    gts_2, preds_2 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-08-22_21_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-22_21_01_00/', 20, '2024-08-22_21_01_00')
+    track_counts_2 = get_sort_detections(gts_2, '/media/tarun/Backup5TB/all_ant_data/rain-tree-08-22-2024_to_09-02-2024/2024-08-22_21_01_00/', '2024-08-22_21_01_00')
+    
+    gts_3, preds_3 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/rain/2024-10-04_12_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-04_12_01_01/', 20, '2024-10-04_12_01_01')
+    track_counts_3 = get_sort_detections(gts_3, '/media/tarun/Backup5TB/all_ant_data/rain-tree-10-03-2024_to_10-19-2024/2024-10-04_12_01_01/', '2024-10-04_12_01_01')
+    
+    gts_4, preds_4 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/shack/2024-08-05_16_01_01.xml', '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-05_16_01_01/', 20, '2024-08-05_16_01_01')
+    track_counts_4 = get_sort_detections(gts_4, '/media/tarun/Backup5TB/all_ant_data/shack-tree-diffuser-08-01-2024_to_08-26-2024/2024-08-05_16_01_01/', '2024-08-05_16_01_01')
+    
+    gts_5, preds_5 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-08-09_11_01_02.xml', '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-09_11_01_02/', 20, '2024-08-09_11_01_02')
+    track_counts_5 = get_sort_detections(gts_5, '/media/tarun/Backup5TB/all_ant_data/beer-tree-08-01-2024_to_08-10-2024/2024-08-09_11_01_02/', '2024-08-09_11_01_02')
+    
+    gts_6, preds_6 = get_metrics('/home/tarun/Desktop/antcam/downloaded_annotations_from_cvat/beer/2024-10-22_22_01_00.xml', '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-22_22_01_00/', 20, '2024-10-22_22_01_00')
+    track_counts_6 = get_sort_detections(gts_6, '/media/tarun/Backup5TB/all_ant_data/beer-10-22-2024_to_11-02-2024/2024-10-22_22_01_00/', '2024-10-22_22_01_00')
+    
 
     gts_1.update(gts_2)
     gts_1.update(gts_3)
+    gts_1.update(gts_4)
+    gts_1.update(gts_5)
+    gts_1.update(gts_6)
+
+    
     preds_1.update(preds_2)
     preds_1.update(preds_3)
+    preds_1.update(preds_4)
+    preds_1.update(preds_5)
+    preds_1.update(preds_6)
+    
+    track_counts_1.update(track_counts_2)
+    track_counts_1.update(track_counts_3)
+    track_counts_1.update(track_counts_4)
+    track_counts_1.update(track_counts_5)
+    track_counts_1.update(track_counts_6)
 
-    ## make a scatter plot of gt_ant_count vs preds_ant_count every frame
+    ##############################################
+
+    ## Calculate overall F1 score (micro-averaging) across all test videos
+    overall_tp, overall_fp, overall_fn = compute_counts(preds_1, gts_1)
+    overall_f1 = (2*overall_tp)/(2*overall_tp + overall_fp + overall_fn) if (2*overall_tp + overall_fp + overall_fn) > 0 else 0.0
+    overall_precision = overall_tp/(overall_tp + overall_fp) if (overall_tp + overall_fp) > 0 else 0.0
+    overall_recall = overall_tp/(overall_tp + overall_fn) if (overall_tp + overall_fn) > 0 else 0.0
+    
+    print('\n' + '='*80)
+    print('OVERALL TEST SET METRICS (Micro-averaging)')
+    print('='*80)
+    print(f'Overall TP, FP, FN: {overall_tp}, {overall_fp}, {overall_fn}')
+    print(f'Overall F1 score: {overall_f1:.4f}')
+    print(f'Overall Precision: {overall_precision:.4f}')
+    print(f'Overall Recall: {overall_recall:.4f}')
+    print('='*80 + '\n')
+
+    ## make a scatter plot of gt_ant_count vs tracked_ant_count every frame
+    # Map video labels to colonies
+    video_to_colony = {
+        '2024-08-22_03_01_01': 'shack', '2024-08-05_16_01_01': 'shack',
+        '2024-08-22_21_01_00': 'rain', '2024-10-04_12_01_01': 'rain',
+        '2024-08-09_11_01_02': 'beer', '2024-10-22_22_01_00': 'beer'
+    }
+    colony_colors = {'beer': 'blue', 'rain': 'green', 'shack': 'orange'}
+    
     gt_count = []
     pred_count = []
+    colors = []
     for f in list(gts_1.keys()):
         gt_count.append(len(gts_1[f]))
-        pred_count.append(len(preds_1[f]))
+        ### detections count
+        ##pred_count.append(len(preds_1[f]))
+        ### tracking count
+        pred_count.append(track_counts_1.get(f, 0))
+        # Extract video ID from file path (assumes video ID is in the path)
+        video_id = None
+        for vid_id in video_to_colony.keys():
+            if vid_id in f:
+                video_id = vid_id
+                break
+        colony = video_to_colony.get(video_id, 'unknown') if video_id else 'unknown'
+        colors.append(colony_colors.get(colony, 'black'))
 
-    plt.title('ground truth vs prediction per frame')
-    plt.scatter(gt_count, pred_count, c='black')
-    plt.ylabel('blob detection counts')
-    plt.xlabel('ground truth counts')
+    # Create a new figure to avoid interference from previous plots
+    plt.figure()
+    plt.title('ground truth vs tracked ant count per frame')
+    for colony in ['beer', 'rain', 'shack']:
+        mask = [c == colony_colors[colony] for c in colors]
+        if any(mask):
+            plt.scatter([gt_count[i] for i in range(len(gt_count)) if mask[i]], 
+                       [pred_count[i] for i in range(len(pred_count)) if mask[i]], 
+                       c=colony_colors[colony], label=colony, alpha=0.6)
+    plt.ylabel('tracked ant count (unique ant IDs per frame)')
+    plt.xlabel('ground truth ant count')
     plt.xlim(0,250)
     plt.ylim(0,250)
-    plt.plot([0,50,100,150,200,250], [0,50,100,150,200,250], color='red')
-    plt.show()
+    plt.plot([0,50,100,150,200,250], [0,50,100,150,200,250], color='red', linestyle='--', label='y=x')
+    plt.legend()
+    plt.savefig('ground_truth_vs_tracked_ant_count_per_frame.svg', format='svg', bbox_inches='tight')
+    #plt.show()
 
     plot_pr_curve(preds_1, gts_1)

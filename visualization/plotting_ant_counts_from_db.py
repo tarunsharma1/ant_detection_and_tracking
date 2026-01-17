@@ -198,13 +198,306 @@ def scatter_plot_for_day_range(start_day, number_of_days=0, site_id = 1):
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_toward, yerr=[y_toward_err_lower, y_toward_err_upper], fmt=".", c='r', ecolor='k', elinewidth=1, label='toward')
 
 	axes.scatter(x_axis_loitering, list(itertools.chain.from_iterable(y_list_loitering)), marker='.', c='y', s=20, alpha=0.3)
-	axes.errorbar(range(24) + np.random.uniform(low=0, high=0, size=24), bootstrapped_means_loitering, yerr=[y_loitering_err_lower, y_loitering_err_upper], fmt=".", c='y', ecolor='k', elinewidth=1, label='loitering/unknown')
+	axes.errorbar(range(24) + np.random.uniform(low=0, high=0, size=24), bootstrapped_means_loitering, yerr=[y_loitering_err_lower, y_loitering_err_upper], fmt=".", c='y', ecolor='k', elinewidth=1, label='unknown')
 	
 	axes.legend()
-	plt.title('Shack tree 08-01-2024 to 09-18-2024')
+	plt.title('Rain tree 11-15-2024 to 12-06-2024')
 	plt.xticks(range(24))
 	plt.xlabel('Hour')
 	plt.ylabel('Mean Ant count')
+	plt.show()
+
+
+def scatter_plot_by_direction_aggregated(start_day, number_of_days=0, site_id=1):
+	"""
+	Plot (away - toward) difference for every hour across all days.
+	X-axis: hours (0-23)
+	Y-axis: (away - toward) difference
+	Shows all individual values with alpha and bootstrapped mean with 95% CI.
+	"""
+	counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_loitering_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id)
+	
+	# Calculate (away - toward) difference for each hour across all days
+	difference_per_hour = {}  # {hour: [differences]}
+	bootstrapped_means = []
+	err_lower = []
+	err_upper = []
+	hours = []
+	
+	for h in range(24):
+		away_values = counts_away_per_hour_across_days[h]
+		toward_values = counts_toward_per_hour_across_days[h]
+		
+		# Calculate difference for each day at this hour
+		# Ensure both lists have the same length
+		min_len = min(len(away_values), len(toward_values))
+		differences = [away_values[i] - toward_values[i] for i in range(min_len)]
+		
+		if len(differences) > 0:
+			difference_per_hour[h] = differences
+			hours.append(h)
+			
+			# Bootstrap with 10000 samples
+			bootstrapped_data = bootstrap(differences, 10000)
+			bootstrapped_mean = np.mean(bootstrapped_data)
+			conf_min, conf_max = confidence_interval(bootstrapped_data)
+			
+			bootstrapped_means.append(bootstrapped_mean)
+			err_lower.append(max(0, bootstrapped_mean - conf_min))
+			err_upper.append(max(0, conf_max - bootstrapped_mean))
+	
+	# Create plot
+	fig, axes = plt.subplots()
+	
+	# Plot all individual values with alpha and jitter
+	for h in hours:
+		differences = difference_per_hour[h]
+		jitter = np.random.uniform(low=-0.15, high=0.15, size=len(differences))
+		axes.scatter([h] * len(differences) + jitter, differences, 
+		            marker='.', c='steelblue', s=20, alpha=0.3)
+	
+	# Plot bootstrapped means with error bars
+	axes.errorbar(hours, bootstrapped_means, 
+	             yerr=[err_lower, err_upper], 
+	             fmt='o', c='steelblue', ecolor='k', elinewidth=2, capsize=5, capthick=2, 
+	             markersize=8, label='Mean ± 95% CI', zorder=10)
+	
+	# Add horizontal line at y=0 (no difference)
+	axes.axhline(y=0, color='black', linestyle='--', linewidth=1, alpha=0.5)
+	
+	# Formatting
+	axes.set_xticks(range(0, 24, 1))
+	axes.set_xlabel('Hour of Day')
+	axes.set_ylabel('(Away - Toward) Difference')
+	
+	# Get site name for title
+	site_name = site_mapping.get(site_id, f'site_{site_id}')
+	axes.set_title(f'{site_name.title()} Tree - (Away - Toward) Difference by Hour\n{start_day} to {start_day + number_of_days - 1}')
+	
+	axes.legend(loc='best')
+	axes.grid(True, alpha=0.3)
+	
+	plt.tight_layout()
+	plt.show()
+
+
+def scatter_plot_cumulative_difference(start_day, number_of_days=0, site_id=1):
+	"""
+	Plot aggregated (away - toward) difference values across all hours and days.
+	X-axis: 2 positions (away, toward) showing the difference values
+	Y-axis: (away - toward) difference
+	Shows all individual difference values with alpha and bootstrapped mean with 95% CI.
+	"""
+	counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_loitering_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id)
+	
+	# Save counts data as pickle file
+	import pickle
+	import os
+	site_name = site_mapping.get(site_id, f'site_{site_id}')
+	end_day = start_day + number_of_days - 1
+	bout_name = f"{site_name}_{str(start_day)}_{str(end_day)}"
+	
+	save_dir = '/home/tarun/Desktop/plots_for_committee_meeting/velocity_analysis'
+	os.makedirs(save_dir, exist_ok=True)
+	
+	pickle_path = os.path.join(save_dir, f"counts_{bout_name}.pkl")
+	with open(pickle_path, 'wb') as f:
+		pickle.dump({
+			'counts_away_per_hour_across_days': counts_away_per_hour_across_days,
+			'counts_toward_per_hour_across_days': counts_toward_per_hour_across_days,
+			'start_day': start_day,
+			'number_of_days': number_of_days,
+			'site_id': site_id
+		}, f)
+	print(f"✅ Saved counts data to {pickle_path}")
+	
+	# Calculate (away - toward) difference for each hour-day combination
+	all_differences = []
+	
+	for h in range(24):
+		away_values = counts_away_per_hour_across_days[h]
+		toward_values = counts_toward_per_hour_across_days[h]
+		
+		# Calculate difference for each day at this hour
+		min_len = min(len(away_values), len(toward_values))
+		for i in range(min_len):
+			diff = away_values[i] - toward_values[i]
+			all_differences.append(diff)
+	
+	if len(all_differences) == 0:
+		print("No data available for plotting")
+		return
+	
+	# Bootstrap the aggregated differences
+	bootstrapped_data = bootstrap(all_differences, 10000)
+	bootstrapped_mean = np.mean(bootstrapped_data)
+	conf_min, conf_max = confidence_interval(bootstrapped_data)
+	err_lower = max(0, bootstrapped_mean - conf_min)
+	err_upper = max(0, conf_max - bootstrapped_mean)
+
+	print (f'bootstrapped mean is {bootstrapped_mean} and confidence interval is {conf_min} to {conf_max}')
+	print (f'error lower is {err_lower} and error upper is {err_upper}')
+	
+	# Create plot
+	fig, axes = plt.subplots()
+	
+	# X-axis position (single column)
+	x_position = 0
+	x_label = '(Away - Toward)'
+	
+	# Add jitter to x position for scatter plot
+	jitter = np.random.uniform(low=-0.15, high=0.15, size=len(all_differences))
+	
+	# Plot all individual difference values with alpha
+	axes.scatter(x_position + jitter, all_differences, marker='.', c='steelblue', s=20, alpha=0.3)
+	
+	# Plot bootstrapped mean with error bars
+	axes.errorbar(x_position, bootstrapped_mean, 
+	             yerr=[[err_lower], [err_upper]], 
+	             fmt='o', c='steelblue', ecolor='k', elinewidth=2, capsize=5, capthick=2, 
+	             markersize=8, label='Mean ± 95% CI', zorder=10)
+	
+	# Add horizontal line at y=0 (no difference)
+	axes.axhline(y=0, color='black', linestyle='--', linewidth=1, alpha=0.5)
+	
+	# Formatting
+	axes.set_xticks([x_position])
+	axes.set_xticklabels([x_label])
+	axes.set_xlabel('Direction')
+	axes.set_ylabel('(Away - Toward) Difference\n(aggregated across all hours and days)')
+	
+	# Get site name for title
+	site_name = site_mapping.get(site_id, f'site_{site_id}')
+	axes.set_title(f'{site_name.title()} Tree - Aggregated (Away - Toward) Difference\n{start_day} to {start_day + number_of_days - 1}')
+	
+	axes.legend(loc='best')
+	axes.grid(True, alpha=0.3)
+	
+	plt.tight_layout()
+	plt.show()
+
+
+def plot_all_bouts_cumulative_difference(save_dir='/home/tarun/Desktop/plots_for_committee_meeting/velocity_analysis'):
+	"""
+	Read all pickle files saved by scatter_plot_cumulative_difference() and plot
+	the aggregated (away - toward) difference values for all bouts on the same plot.
+	
+	X-axis: One position per bout (7 positions for 7 pickle files)
+	Y-axis: (Away - Toward) difference
+	Shows all individual difference values with alpha and bootstrapped mean with 95% CI for each bout.
+	
+	Parameters
+	----------
+	save_dir : str
+		Directory containing the pickle files (default: '/home/tarun/Desktop/plots_for_committee_meeting/velocity_analysis')
+	"""
+	import pickle
+	import os
+	import glob
+	
+	# Find all pickle files matching the pattern
+	pickle_pattern = os.path.join(save_dir, 'counts_*.pkl')
+	pickle_files = sorted(glob.glob(pickle_pattern))
+	
+
+	
+	# Store data for each bout
+	bout_data = []
+	
+	# Load and process each pickle file
+	for pickle_path in pickle_files:
+		with open(pickle_path, 'rb') as f:
+			data = pickle.load(f)
+		
+		counts_away_per_hour_across_days = data['counts_away_per_hour_across_days']
+		counts_toward_per_hour_across_days = data['counts_toward_per_hour_across_days']
+		start_day = data.get('start_day', 'Unknown')
+		number_of_days = data.get('number_of_days', 0)
+		site_id = data.get('site_id', 0)
+		
+		# Calculate (away - toward) difference for each hour-day combination
+		all_differences = []
+		
+		for h in range(24):
+			if h in counts_away_per_hour_across_days and h in counts_toward_per_hour_across_days:
+				away_values = counts_away_per_hour_across_days[h]
+				toward_values = counts_toward_per_hour_across_days[h]
+				
+				# Calculate difference for each day at this hour
+				min_len = min(len(away_values), len(toward_values))
+				for i in range(min_len):
+					diff = away_values[i] - toward_values[i]
+					all_differences.append(diff)
+		
+		if len(all_differences) == 0:
+			print(f"Warning: No data in {os.path.basename(pickle_path)}")
+			continue
+		
+		# Bootstrap the aggregated differences
+		bootstrapped_data = bootstrap(all_differences, 10000)
+		bootstrapped_mean = np.mean(bootstrapped_data)
+		conf_min, conf_max = confidence_interval(bootstrapped_data)
+		err_lower = max(0, bootstrapped_mean - conf_min)
+		err_upper = max(0, conf_max - bootstrapped_mean)
+		
+		# Create bout label
+		site_name = site_mapping.get(site_id, f'site_{site_id}')
+		bout_label = f"{site_name}\n{start_day}"
+		
+		bout_data.append({
+			'all_differences': all_differences,
+			'bootstrapped_mean': bootstrapped_mean,
+			'err_lower': err_lower,
+			'err_upper': err_upper,
+			'bout_label': bout_label,
+			'site_id': site_id,
+			'start_day': start_day
+		})
+		
+		print(f"Processed {os.path.basename(pickle_path)}: {len(all_differences)} differences, mean={bootstrapped_mean:.4f}")
+	
+	if len(bout_data) == 0:
+		print("No valid data to plot")
+		return
+	
+	# Create plot
+	fig, axes = plt.subplots(figsize=(max(8, len(bout_data) * 1.0), 6))
+	
+	# X-axis positions (one per bout)
+	x_positions = np.arange(len(bout_data))
+	
+	# Plot each bout
+	for idx, bout in enumerate(bout_data):
+		x_pos = x_positions[idx]
+		all_differences = bout['all_differences']
+		bootstrapped_mean = bout['bootstrapped_mean']
+		err_lower = bout['err_lower']
+		err_upper = bout['err_upper']
+		
+		# Add jitter to x position for scatter plot
+		jitter = np.random.uniform(low=-0.1, high=0.1, size=len(all_differences))
+		
+		# Plot all individual difference values in grey
+		axes.scatter(x_pos + jitter, all_differences, marker='.', c='grey', s=20, alpha=0.3)
+		
+		# Plot bootstrapped mean with error bars in black
+		axes.errorbar(x_pos, bootstrapped_mean, 
+		             yerr=[[err_lower], [err_upper]], 
+		             fmt='o', c='black', ecolor='black', elinewidth=1, capsize=5, capthick=1, 
+		             markersize=8, zorder=10)
+	
+	# Add horizontal line at y=0 (no difference)
+	axes.axhline(y=0, color='black', linestyle='--', linewidth=1, alpha=1)
+	
+	# Formatting
+	axes.set_xticks(x_positions)
+	axes.set_xticklabels([bout['bout_label'] for bout in bout_data], rotation=45, ha='right', fontsize=9)
+	axes.set_xlabel('Bout', fontsize=11)
+	axes.set_ylabel('(Away - Toward) Difference\n(aggregated across all hours and days)', fontsize=11)
+	axes.set_title('Aggregated (Away - Toward) Difference Across All Bouts', fontsize=12, fontweight='bold')
+	#axes.grid(True, alpha=0.3)
+	
+	plt.tight_layout()
 	plt.show()
 
 
@@ -220,10 +513,10 @@ def linear_regression():
 	all_site_ids = []
 	all_months = []
 
-	data_collected = [(pd.Period('2024-08-22', freq='D'), 12, 3), (pd.Period('2024-10-03', freq='D'), 17, 3), (pd.Period('2024-11-15', freq='D'), 22, 3), (pd.Period('2024-08-01', freq='D'), 11, 1), (pd.Period('2024-10-22', freq='D'), 12, 1)]
+	data_collected = [(pd.Period('2024-08-22', freq='D'), 12, 3), (pd.Period('2024-10-03', freq='D'), 17, 3), (pd.Period('2024-11-15', freq='D'), 22, 3), (pd.Period('2024-08-01', freq='D'), 10, 1), (pd.Period('2024-10-22', freq='D'), 12, 1), (pd.Period('2024-08-01', freq='D'), 26, 2), (pd.Period('2024-08-26', freq='D'), 24, 2)]
 	
 	for (start_day, number_of_days, site_id) in data_collected:
-		counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id)
+		counts_away_per_hour_across_days, counts_toward_per_hour_across_days, counts_loitering_per_hour_across_days, counts_total, temperature, humidity, lux = get_data_from_db(start_day, number_of_days, site_id)
 		
 		for hour in range(24):
 			all_ant_counts.extend(counts_total[hour])
@@ -248,10 +541,31 @@ def linear_regression():
 	df_linear_reg['time_cos'] = np.cos(2 * np.pi * df_linear_reg['time'] / 24)
 
 	
-	model = smf.mixedlm("log_ant_count ~ time_sin + time_cos + temperature + humidity + lux", df_linear_reg, groups=df_linear_reg["site"])
+	# model = smf.mixedlm("log_ant_count ~ time_sin + time_cos + temperature + humidity + lux", 
+	# 	df_linear_reg, 
+	# 	groups=df_linear_reg["site"])
+	# 	#re_formula="~temperature")
 
-	result = model.fit()
+	# result = model.fit(reml=False)
+	# print(result.summary())
+
+
+	### before fitting lets standardize predictors 
+	predictors = ['time_sin', 'time_cos', 'temperature', 'humidity', 'lux']
+
+	# Initialize scaler
+	from sklearn.preprocessing import StandardScaler
+	scaler = StandardScaler()
+	# Fit scaler and transform predictors
+	df_linear_reg_std = df_linear_reg.copy()
+	df_linear_reg_std[predictors] = scaler.fit_transform(df_linear_reg_std[predictors])
+
+	# Now fit mixed effects model with standardized predictors
+	import statsmodels.formula.api as smf
+	model = smf.mixedlm("log_ant_count ~ time_sin + time_cos + temperature + humidity + lux", df_linear_reg_std, groups=df_linear_reg_std["site"])
+	result = model.fit(reml=False)
 	print(result.summary())
+
 
 	### calculate AIC/BIC
 	log_likelihood = result.llf
@@ -272,7 +586,7 @@ def linear_regression():
 
 
 	## check for correlations and multicollinearity
-	predictors = df_linear_reg[['temperature', 'humidity', 'lux', 'time_sin', 'time_cos']]
+	predictors = df_linear_reg_std[['temperature', 'humidity', 'lux', 'time_sin', 'time_cos']]
 	corr = predictors.corr()
 	print (corr)
 	X = sm.add_constant(predictors)
@@ -285,7 +599,7 @@ def linear_regression():
 
 	## plot model predictions against actual values
 	fitted_values = result.fittedvalues
-	actual_values = df_linear_reg['log_ant_count']
+	actual_values = df_linear_reg_std['log_ant_count']
 	sns.regplot(x=actual_values, y=fitted_values, scatter_kws={'alpha':0.5}, line_kws={'color':'orange'})
 	plt.xlabel('Actual Values')
 	plt.ylabel('Predicted Values')
@@ -412,7 +726,7 @@ def scatter_plot_encounters_for_day_range(start_day, number_of_days=0, site_id =
 	axes.errorbar(range(24) + np.random.uniform(low=-0.10, high=-0.10, size=24), bootstrapped_means_loitering, yerr=[y_loitering_err_lower, y_loitering_err_upper], fmt=".", c='y', ecolor='k', elinewidth=1, label='loitering/unknown')
 
 	axes.legend()
-	plt.title('Rain tree 08-22-2024 to 09-02-2024')
+	plt.title('Beer tree 08-01-2024 to 08-10-2024')
 	plt.xticks(range(24))
 	plt.xlabel('Hour')
 	plt.ylabel('Avg number of encounters per video')
@@ -475,6 +789,10 @@ def plot_ant_counts_vs_variables_scatter():
 
 
 
+parameters = {'axes.labelsize':8,'axes.titlesize':8, 'xtick.labelsize':8, 'font.family':"sans-serif", 'font.sans-serif':['Arial'], 'font.size':8, 'svg.fonttype':'none'}
+plt.rcParams.update(parameters)
+
+
 connection = database_helper.create_connection("localhost", "root", "master", "ant_colony_db")
 cursor = connection.cursor()
 query = f"""
@@ -500,14 +818,16 @@ days_period = pd.Period('2024-08-01', freq='D')
 ## get the sites where we have data for the period we are in interested in
 sites = set(df.loc[(df.time_stamp.dt.day == days_period.start_time.day) & (df.time_stamp.dt.month == days_period.start_time.month)].site_id)
 sites = list(sites)
-sites = [2]
+sites = [1]
 
 
-#linear_regression()
-
+linear_regression()
+plot_all_bouts_cumulative_difference()
 
 for site in sites:
-	scatter_plot_for_day_range(days_period, 50, site)
+	#scatter_plot_for_day_range(days_period, 12, site)
+	#scatter_plot_by_direction_aggregated(days_period, 10, site)
+	scatter_plot_cumulative_difference(days_period, 10, site)
 	#scatter_plot_encounters_for_day_range(days_period, 12, site)
 
 
